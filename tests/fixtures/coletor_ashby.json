@@ -1,0 +1,25 @@
+{
+  "jobs": [
+    {
+      "id": "ash-001",
+      "title": "Application Security Engineer",
+      "department": "Engineering",
+      "team": "AppSec",
+      "employmentType": "FullTime",
+      "location": "Remote",
+      "isRemote": true,
+      "workplaceType": "Remote",
+      "publishedAt": "2026-10-10T00:00:00.000Z",
+      "isListed": true,
+      "jobUrl": "https://jobs.ashbyhq.com/empresaficticia/ash-001",
+      "applyUrl": "https://jobs.ashbyhq.com/empresaficticia/ash-001/apply",
+      "descriptionHtml": "<p>AppSec no dia a dia.</p><ul><li>SAST</li><li>DAST</li></ul>",
+      "descriptionPlain": "AppSec no dia a dia."
+    },
+    {
+      "id": "ash-002",
+      "title": "Vendas Interno",
+      "descriptionHtml": "<p>Vendas.</p>"
+    }
+  ]
+}

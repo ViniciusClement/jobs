@@ -1,0 +1,25 @@
+{
+  "jobs": [
+    {
+      "id": 1001,
+      "internal_job_id": 9001,
+      "absolute_url": "https://boards.greenhouse.io/empresaficticia/jobs/1001",
+      "title": "Penetration Tester",
+      "company_name": "Empresa Fictícia",
+      "location": {"name": "São Paulo, BR"},
+      "requisition_id": "REQ-001",
+      "first_published": "2026-10-01T12:00:00-03:00",
+      "updated_at": "2026-10-05T09:30:00-03:00",
+      "content": "<p>Procuramos um pentester.</p><ul><li>Python</li><li>Burp Suite</li></ul>",
+      "departments": [{"id": 1, "name": "Security"}],
+      "offices": [{"id": 1, "name": "São Paulo"}],
+      "metadata": []
+    },
+    {
+      "id": 1002,
+      "absolute_url": "https://boards.greenhouse.io/empresaficticia/jobs/1002",
+      "title": "Account Manager",
+      "content": "<p>Vendas de software.</p>"
+    }
+  ]
+}

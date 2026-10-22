@@ -1,0 +1,9 @@
+{
+  "offset": 0,
+  "limit": 100,
+  "totalFound": 2,
+  "content": [
+    {"id": "sr-001", "name": "Security Researcher", "uuid": "uuid-sr-001", "ref": "https://api.smartrecruiters.com/v1/companies/empresaficticia/postings/sr-001"},
+    {"id": "sr-002", "name": "Vendas Externo", "uuid": "uuid-sr-002", "ref": "https://api.smartrecruiters.com/v1/companies/empresaficticia/postings/sr-002"}
+  ]
+}

@@ -1,0 +1,8 @@
+Pentester Júnior
+Vaga 1: conhecimento em Python.
+=== VAGA ===
+Red Team Operator
+Vaga 2: conhecimento em Cobalt Strike.
+=== VAGA ===
+AppSec Engineer
+Vaga 3: conhecimento em SAST e DAST.

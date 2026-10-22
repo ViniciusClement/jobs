@@ -1,0 +1,13 @@
+Penetration Tester
+Os desafios da função são:
+Realizar testes de intrusão em redes e aplicações.
+É muito importante que você tenha e/ou saiba:
+Python, Burp Suite e Nmap.
+E quais são os benefícios?
+Vale refeição e plano de saúde.
+Key Responsibilities
+Perform red team engagements against enterprise clients.
+Required Skills & Experience
+OSCP certification required.
+Position Description
+We help companies find vulnerabilities before attackers do.

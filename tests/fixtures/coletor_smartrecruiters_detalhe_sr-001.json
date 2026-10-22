@@ -1,0 +1,18 @@
+{
+  "id": "sr-001",
+  "name": "Security Researcher",
+  "uuid": "uuid-sr-001",
+  "company": {"identifier": "empresaficticia", "name": "Empresa Fictícia"},
+  "location": {"city": "Remote", "region": null, "country": "br", "remote": true, "hybrid": false},
+  "department": {"id": "d1", "label": "Security"},
+  "releasedDate": "2026-10-08T00:00:00.000Z",
+  "postingUrl": "https://careers.smartrecruiters.com/empresaficticia/security-researcher",
+  "applyUrl": "https://jobs.smartrecruiters.com/empresaficticia/apply/sr-001",
+  "jobAd": {
+    "sections": {
+      "companyDescription": {"title": "Sobre nós", "text": "<p>Somos uma empresa fictícia.</p>"},
+      "jobDescription": {"title": "Descrição", "text": "<p>Pesquisa de vulnerabilidades.</p>"},
+      "qualifications": {"title": "Qualificações", "text": "<ul><li>Metasploit</li><li>Nmap</li></ul>"}
+    }
+  }
+}

@@ -1,0 +1,9 @@
+Empresa: Dedup Corp | Local: SP | URL: https://exemplo.com/vaga/dedup-1 | Data: 2026-10-01 | Origem: linkedin | Mercado: BR | Status: novo
+---
+Pentester
+Python required.
+=== VAGA ===
+Empresa: Dedup Corp | Local: SP | URL: https://exemplo.com/vaga/dedup-1 | Data: 2026-10-01 | Origem: linkedin | Mercado: BR | Status: novo
+---
+Pentester
+Python required.

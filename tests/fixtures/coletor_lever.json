@@ -1,0 +1,26 @@
+[
+  {
+    "id": "aaa-111",
+    "text": "Red Team Operator",
+    "categories": {"location": "Remote - Brazil", "team": "Security", "commitment": "Full-time", "allLocations": ["Remote - Brazil"]},
+    "createdAt": 1759315200000,
+    "description": "<p>Vaga de red team.</p>",
+    "descriptionPlain": "Vaga de red team.",
+    "lists": [
+      {"text": "Requisitos", "content": "<ul><li>Cobalt Strike</li><li>OPSEC</li></ul>"}
+    ],
+    "salaryRange": {"min": 120000, "max": 160000, "currency": "USD", "interval": "per-year-salary"},
+    "country": "BR",
+    "workplaceType": "remote",
+    "hostedUrl": "https://jobs.lever.co/empresaficticia/aaa-111",
+    "applyUrl": "https://jobs.lever.co/empresaficticia/aaa-111/apply"
+  },
+  {
+    "id": "bbb-222",
+    "text": "Customer Success Manager",
+    "categories": {"location": "São Paulo", "team": "CS"},
+    "createdAt": 1759315200000,
+    "description": "<p>Suporte a clientes.</p>",
+    "hostedUrl": "https://jobs.lever.co/empresaficticia/bbb-222"
+  }
+]

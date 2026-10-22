@@ -1,0 +1,29 @@
+{
+  "linhas_exatas": [
+    "apply",
+    "apply now",
+    "candidatar-se",
+    "candidatar",
+    "full job description",
+    "time type",
+    "job type",
+    "share",
+    "save job",
+    "save",
+    "report job",
+    "show more",
+    "show less",
+    "ver mais",
+    "ver menos",
+    "voltar",
+    "back to search results",
+    "print",
+    "email this job"
+  ],
+  "regex": [
+    "^posted\\s+\\d+\\+?\\s*days?\\s+ago$",
+    "^posted\\s+(today|yesterday)$",
+    "^publicad[oa]\\s+(h[áa]|em)\\s+.*$",
+    "^(?=.*[0-9])(?=.*[a-zA-Z])[a-zA-Z0-9]{8,}$"
+  ]
+}

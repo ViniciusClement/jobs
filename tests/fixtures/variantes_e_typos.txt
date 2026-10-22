@@ -1,0 +1,6 @@
+Red Team Operator
+Experience with Mittre Attack framework and MITRE ATT&CK methodology.
+Static analysis experience with CheckMarkx (Checkmarx).
+Conducts Spear Phishin and spear phishing campaigns.
+Uses Fuff (ffuf) for content discovery.
+Certifications: OSCP*, Pentest+ or PenTest+ accepted.

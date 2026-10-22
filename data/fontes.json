@@ -1,0 +1,20 @@
+{
+  "ats": [
+    {"tipo": "greenhouse", "slug": "TROCAR", "mercado": "BR", "empresa": null},
+    {"tipo": "lever", "slug": "TROCAR", "mercado": "INT", "empresa": null},
+    {"tipo": "ashby", "slug": "TROCAR", "mercado": "INT", "empresa": null},
+    {"tipo": "smartrecruiters", "slug": "TROCAR", "mercado": "INT", "empresa": null}
+  ],
+  "filtros": {
+    "titulo_inclui": [
+      "pentest", "penetration test", "red team", "red teamer",
+      "offensive security", "segurança ofensiva", "seguranca ofensiva",
+      "appsec", "application security", "security engineer",
+      "security researcher", "vulnerability", "ethical hack"
+    ],
+    "titulo_exclui": [
+      "sales", "vendas", "account manager", "customer success",
+      "recruiter", "recrutador"
+    ]
+  }
+}

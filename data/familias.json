@@ -1,0 +1,42 @@
+{
+  "red_team": [
+    "red team",
+    "red teamer",
+    "red-team",
+    "adversary emulation",
+    "adversary simulation",
+    "purple team",
+    "emulação de adversário",
+    "emulacao de adversario"
+  ],
+  "pentest": [
+    "pentest",
+    "pen test",
+    "pen-test",
+    "penetration tester",
+    "penetration testing",
+    "pentester",
+    "security consultant",
+    "offensive security",
+    "segurança ofensiva",
+    "seguranca ofensiva",
+    "analista de pentest",
+    "consultor de segurança ofensiva"
+  ],
+  "appsec": [
+    "appsec",
+    "application security",
+    "segurança de aplicações",
+    "seguranca de aplicacoes",
+    "product security",
+    "devsecops",
+    "secure code review"
+  ],
+  "gestao_vuln": [
+    "vulnerability management",
+    "gestão de vulnerabilidades",
+    "gestao de vulnerabilidades",
+    "vulnerability analyst",
+    "analista de vulnerabilidades"
+  ]
+}

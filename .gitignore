@@ -1,0 +1,17 @@
+cv/*
+!cv/README.md
+privado/
+.env
+__pycache__/
+*.pyc
+tests/fixtures_reais/
+
+# Texto bruto de anúncios de terceiros (inbox/raw/processadas) — nunca vai
+# para o git (ver seção "Por que anúncios reais..." do README).
+vagas/
+
+# Banco local (Fase 5): guarda vagas (texto bruto/contato de recrutador) E
+# o perfil privado no mesmo arquivo — nunca deve ir para o git.
+data/radar.db
+data/radar.db-wal
+data/radar.db-shm

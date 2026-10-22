@@ -1,0 +1,149 @@
+{
+  "Active Directory": {
+    "Kerberos": {"sinonimos": ["kerberos", "kerberoasting"], "regex": [], "case_sensitive": false},
+    "ADCS": {"sinonimos": ["adcs", "ad cs", "active directory certificate services"], "regex": [], "case_sensitive": false},
+    "BloodHound": {"sinonimos": [], "regex": ["Blood\\s*Hound"], "case_sensitive": false},
+    "NTLM relay": {"sinonimos": ["ntlm relay", "ntlm relaying", "relay ntlm"], "regex": [], "case_sensitive": false},
+    "Pass-the-Hash": {"sinonimos": ["pass-the-hash", "pass the hash", "pth"], "regex": [], "case_sensitive": false}
+  },
+  "Cloud/Identidade": {
+    "Azure/Entra ID": {"sinonimos": ["azure ad", "azure active directory", "entra id", "microsoft entra"], "regex": ["\\bAzure\\b"], "case_sensitive": false},
+    "AWS": {"sinonimos": ["amazon web services"], "regex": ["\\bAWS\\b"], "case_sensitive": true},
+    "GCP": {"sinonimos": ["google cloud platform", "google cloud"], "regex": ["\\bGCP\\b"], "case_sensitive": true},
+    "Kubernetes": {"sinonimos": ["kubernetes", "k8s"], "regex": [], "case_sensitive": false},
+    "Docker": {"sinonimos": ["docker"], "regex": [], "case_sensitive": false}
+  },
+  "Web/API": {
+    "OWASP Top 10": {"sinonimos": ["owasp top 10", "owasp top10", "owasp"], "regex": [], "case_sensitive": false},
+    "REST": {"sinonimos": ["restful", "rest api"], "regex": ["\\bREST\\b"], "case_sensitive": true},
+    "SOAP": {"sinonimos": ["soap api"], "regex": ["\\bSOAP\\b"], "case_sensitive": true},
+    "XSS": {"sinonimos": ["cross-site scripting", "cross site scripting"], "regex": ["\\bXSS\\b"], "case_sensitive": true},
+    "SSRF": {"sinonimos": ["server-side request forgery", "server side request forgery"], "regex": ["\\bSSRF\\b"], "case_sensitive": true}
+  },
+  "AppSec/DevSecOps": {
+    "SAST": {"sinonimos": ["static application security testing"], "regex": ["\\bSAST\\b"], "case_sensitive": true},
+    "DAST": {"sinonimos": ["dynamic application security testing"], "regex": ["\\bDAST\\b"], "case_sensitive": true},
+    "SCA": {"sinonimos": ["software composition analysis"], "regex": ["\\bSCA\\b"], "case_sensitive": true},
+    "SSDLC": {"sinonimos": ["secure sdlc", "secure software development lifecycle"], "regex": ["\\bSSDLC\\b"], "case_sensitive": true},
+    "CI/CD": {"sinonimos": ["ci/cd", "continuous integration", "continuous delivery"], "regex": [], "case_sensitive": false},
+    "Threat Modeling": {"sinonimos": ["threat modeling", "threat modelling", "modelagem de ameaças", "modelagem de ameacas"], "regex": [], "case_sensitive": false}
+  },
+  "Ferramentas de pentest": {
+    "Burp Suite": {"sinonimos": ["burp suite", "burpsuite", "burp"], "regex": [], "case_sensitive": false},
+    "Metasploit": {"sinonimos": ["metasploit", "msfconsole"], "regex": [], "case_sensitive": false},
+    "Nmap": {"sinonimos": ["nmap"], "regex": [], "case_sensitive": false},
+    "Wireshark": {"sinonimos": ["wireshark"], "regex": [], "case_sensitive": false},
+    "Kali Linux": {"sinonimos": ["kali linux", "kali"], "regex": [], "case_sensitive": false},
+    "Nessus": {"sinonimos": ["nessus"], "regex": [], "case_sensitive": false},
+    "ffuf": {"sinonimos": ["ffuf", "fuff"], "regex": [], "case_sensitive": false}
+  },
+  "Gestão de vulnerabilidades": {
+    "Qualys": {"sinonimos": ["qualys"], "regex": [], "case_sensitive": false},
+    "Tenable": {"sinonimos": ["tenable", "tenable.io", "tenable.sc"], "regex": [], "case_sensitive": false},
+    "Rapid7": {"sinonimos": ["rapid7", "insightvm"], "regex": [], "case_sensitive": false},
+    "CTEM": {"sinonimos": ["ctem", "continuous threat exposure management"], "regex": [], "case_sensitive": false}
+  },
+  "Análise de código": {
+    "Veracode": {"sinonimos": ["veracode"], "regex": [], "case_sensitive": false},
+    "Checkmarx": {"sinonimos": ["checkmarx", "checkmarkx", "check marx"], "regex": [], "case_sensitive": false},
+    "AppScan": {"sinonimos": ["appscan", "app scan"], "regex": [], "case_sensitive": false},
+    "Fortify": {"sinonimos": ["fortify"], "regex": [], "case_sensitive": false}
+  },
+  "C2 e infraestrutura": {
+    "Cobalt Strike": {"sinonimos": ["cobalt strike", "cobaltstrike"], "regex": [], "case_sensitive": false},
+    "Sliver": {"sinonimos": ["sliver c2", "sliver framework"], "regex": ["\\bSliver\\b"], "case_sensitive": true},
+    "Havoc": {"sinonimos": ["havoc c2", "havoc framework"], "regex": ["\\bHavoc\\b"], "case_sensitive": true},
+    "Mythic": {"sinonimos": ["mythic c2", "mythic framework"], "regex": ["\\bMythic\\b"], "case_sensitive": true},
+    "Redirectors": {"sinonimos": ["redirector", "redirectors"], "regex": [], "case_sensitive": false},
+    "OPSEC": {"sinonimos": ["opsec", "operational security"], "regex": [], "case_sensitive": false}
+  },
+  "Evasão": {
+    "EDR/AV": {"sinonimos": ["edr", "antivirus evasion", "av evasion", "edr evasion", "bypass de edr", "bypass de antivirus"], "regex": [], "case_sensitive": false},
+    "AMSI": {"sinonimos": ["amsi", "amsi bypass"], "regex": [], "case_sensitive": false},
+    "ETW": {"sinonimos": ["etw", "etw patching"], "regex": [], "case_sensitive": false},
+    "Obfuscation": {"sinonimos": ["obfuscation", "ofuscação", "ofuscacao"], "regex": [], "case_sensitive": false}
+  },
+  "Engenharia social/Phishing/OSINT": {
+    "Engenharia social": {"sinonimos": ["engenharia social", "social engineering"], "regex": [], "case_sensitive": false},
+    "Phishing": {"sinonimos": ["phishing"], "regex": [], "case_sensitive": false},
+    "Spear phishing": {"sinonimos": ["spear phishing", "spear phishin", "spearphishing"], "regex": [], "case_sensitive": false},
+    "OSINT": {"sinonimos": ["osint", "open source intelligence"], "regex": [], "case_sensitive": false}
+  },
+  "Testes especializados": {
+    "Mobile": {"sinonimos": ["mobile pentest", "mobile application security", "teste de aplicativos mobile", "pentest mobile"], "regex": [], "case_sensitive": false},
+    "Thick client": {"sinonimos": ["thick client", "thick-client"], "regex": [], "case_sensitive": false},
+    "Wireless": {"sinonimos": ["wireless pentest", "wifi pentest", "pentest wireless", "pentest wifi"], "regex": [], "case_sensitive": false},
+    "IoT": {"sinonimos": ["iot security", "teste de iot", "pentest iot"], "regex": ["\\bIoT\\b"], "case_sensitive": true},
+    "Bypass físico": {"sinonimos": ["bypass físico", "bypass fisico", "physical bypass", "physical security testing"], "regex": [], "case_sensitive": false}
+  },
+  "Malware dev": {
+    "Malware dev": {"sinonimos": ["malware development", "desenvolvimento de malware", "malware dev"], "regex": [], "case_sensitive": false}
+  },
+  "Metodologias e frameworks": {
+    "MITRE ATT&CK": {"sinonimos": ["mitre att&ck", "mitre attack", "mittre attack", "att&ck"], "regex": [], "case_sensitive": false},
+    "OSSTMM": {"sinonimos": ["osstmm"], "regex": [], "case_sensitive": false},
+    "PTES": {"sinonimos": ["ptes"], "regex": [], "case_sensitive": false},
+    "TIBER-EU": {"sinonimos": ["tiber-eu", "tiber eu"], "regex": [], "case_sensitive": false},
+    "NIST": {"sinonimos": ["nist"], "regex": ["\\bNIST\\b"], "case_sensitive": true},
+    "ISO 27001": {"sinonimos": ["iso 27001", "iso/iec 27001"], "regex": [], "case_sensitive": false},
+    "PCI DSS": {"sinonimos": ["pci dss", "pci-dss"], "regex": [], "case_sensitive": false},
+    "FedRAMP": {"sinonimos": ["fedramp"], "regex": [], "case_sensitive": false},
+    "CREST": {"sinonimos": [], "regex": ["\\bCREST\\b"], "case_sensitive": true},
+    "Purple Team": {"sinonimos": ["purple team", "purple teaming"], "regex": [], "case_sensitive": false},
+    "Rules of Engagement": {"sinonimos": ["rules of engagement", "roe"], "regex": [], "case_sensitive": false}
+  },
+  "Linguagens": {
+    "Python": {"sinonimos": ["python"], "regex": [], "case_sensitive": false},
+    "PowerShell": {"sinonimos": [], "regex": ["Power\\s*Shell"], "case_sensitive": false},
+    "C#": {"sinonimos": ["c#", "csharp", "c sharp"], "regex": [], "case_sensitive": false},
+    "C/C++": {"sinonimos": [], "regex": ["C/C\\+\\+", "\\bC\\+\\+", "\\blinguagem\\s+C\\b", "\\bprograma[çc][ãa]o\\s+em\\s+C\\b", "\\bprogramming\\s+in\\s+C\\b"], "case_sensitive": true},
+    "Go": {"sinonimos": ["golang"], "regex": ["\\bGo\\b(?!\\s+(?:to\\s+market|[Pp]hish|[Gg]etter))"], "case_sensitive": true},
+    "Rust": {"sinonimos": [], "regex": ["\\bRust\\b(?!\\s+(?:belt|stain))"], "case_sensitive": true},
+    "Nim": {"sinonimos": [], "regex": ["\\bNim\\b"], "case_sensitive": true},
+    "Bash": {"sinonimos": ["bash", "shell script", "shell scripting"], "regex": [], "case_sensitive": false},
+    "JavaScript": {"sinonimos": ["javascript", "js"], "regex": [], "case_sensitive": false},
+    "PHP": {"sinonimos": ["php"], "regex": [], "case_sensitive": false},
+    "Java": {"sinonimos": ["java"], "regex": [], "case_sensitive": false}
+  },
+  "Certificações ofensivas": {
+    "OSCP": {"sinonimos": [], "regex": ["\\bOSCP\\*?\\b"], "case_sensitive": false},
+    "OSEP": {"sinonimos": [], "regex": ["\\bOSEP\\*?\\b"], "case_sensitive": false},
+    "OSED": {"sinonimos": [], "regex": ["\\bOSED\\*?\\b"], "case_sensitive": false},
+    "OSWE": {"sinonimos": [], "regex": ["\\bOSWE\\*?\\b"], "case_sensitive": false},
+    "OSWA": {"sinonimos": [], "regex": ["\\bOSWA\\*?\\b"], "case_sensitive": false},
+    "OSEE": {"sinonimos": [], "regex": ["\\bOSEE\\*?\\b"], "case_sensitive": false},
+    "CRTO": {"sinonimos": [], "regex": ["\\bCRTO\\*?\\b"], "case_sensitive": false},
+    "CRTP": {"sinonimos": [], "regex": ["\\bCRTP\\*?\\b"], "case_sensitive": false},
+    "CRTE": {"sinonimos": [], "regex": ["\\bCRTE\\*?\\b"], "case_sensitive": false},
+    "CRTA": {"sinonimos": [], "regex": ["\\bCRTA\\*?\\b"], "case_sensitive": false},
+    "PNPT": {"sinonimos": [], "regex": ["\\bPNPT\\*?\\b"], "case_sensitive": false},
+    "BSCP": {"sinonimos": [], "regex": ["\\bBSCP\\*?\\b"], "case_sensitive": false},
+    "GPEN": {"sinonimos": [], "regex": ["\\bGPEN\\*?\\b"], "case_sensitive": false},
+    "GXPN": {"sinonimos": [], "regex": ["\\bGXPN\\*?\\b"], "case_sensitive": false},
+    "GWAPT": {"sinonimos": [], "regex": ["\\bGWAPT\\*?\\b"], "case_sensitive": false},
+    "CEPT": {"sinonimos": [], "regex": ["\\bCEPT\\*?\\b"], "case_sensitive": false},
+    "CMWAPT": {"sinonimos": [], "regex": ["\\bCMWAPT\\*?\\b"], "case_sensitive": false},
+    "eCPPT": {"sinonimos": [], "regex": ["\\beCPPT\\*?\\b"], "case_sensitive": false},
+    "eMAPT": {"sinonimos": [], "regex": ["\\beMAPT\\*?\\b"], "case_sensitive": false},
+    "LPT": {"sinonimos": [], "regex": ["\\bLPT\\*?\\b"], "case_sensitive": false},
+    "Pentest+": {"sinonimos": [], "regex": ["\\b[Pp]en[Tt]est\\+"], "case_sensitive": false},
+    "CEH": {"sinonimos": [], "regex": ["\\bCEH\\*?\\b"], "case_sensitive": false}
+  },
+  "Certificações gerais/gestão": {
+    "CISSP": {"sinonimos": [], "regex": ["\\bCISSP\\*?\\b"], "case_sensitive": false},
+    "CISM": {"sinonimos": [], "regex": ["\\bCISM\\*?\\b"], "case_sensitive": false},
+    "CISA": {"sinonimos": [], "regex": ["\\bCISA\\*?\\b"], "case_sensitive": false},
+    "CCSP": {"sinonimos": [], "regex": ["\\bCCSP\\*?\\b"], "case_sensitive": false},
+    "CSSLP": {"sinonimos": [], "regex": ["\\bCSSLP\\*?\\b"], "case_sensitive": false},
+    "CASP+": {"sinonimos": [], "regex": ["\\bCASP\\+"], "case_sensitive": false},
+    "GCFA": {"sinonimos": [], "regex": ["\\bGCFA\\*?\\b"], "case_sensitive": false},
+    "CHFI": {"sinonimos": [], "regex": ["\\bCHFI\\*?\\b"], "case_sensitive": false},
+    "GCED": {"sinonimos": [], "regex": ["\\bGCED\\*?\\b"], "case_sensitive": false}
+  },
+  "Soft skills/relatórios": {
+    "Report writing": {"sinonimos": ["report writing", "redação de relatórios", "redacao de relatorios", "elaboração de relatórios", "elaboracao de relatorios"], "regex": [], "case_sensitive": false},
+    "Mentoria": {"sinonimos": ["mentoria", "mentoring", "mentorship"], "regex": [], "case_sensitive": false},
+    "Comunicação com não técnicos": {"sinonimos": ["comunicação com não técnicos", "comunicacao com nao tecnicos", "communication with non-technical stakeholders"], "regex": [], "case_sensitive": false},
+    "CTF": {"sinonimos": ["ctf", "ctfs", "capture the flag"], "regex": [], "case_sensitive": false}
+  }
+}

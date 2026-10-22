@@ -1,0 +1,7 @@
+Red Teamer
+Descrição:
+Go to market strategy aside, be a go-getter — let's go build great things. We run a Go Phish exercise monthly.
+Reporting to the C-level executives, rich in Vitamina C, meetings with the C suite.
+Requisitos:
+Experiência em Go, Golang ou Go (linguagem).
+Strong skills in C/C++, conhecimento em linguagem C e experiência em programação em C.

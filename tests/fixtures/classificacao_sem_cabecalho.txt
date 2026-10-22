@@ -1,0 +1,4 @@
+Pentester
+OSCP is a plus for this position.
+Python is required for this role.
+We use Burp Suite daily.
