@@ -7,8 +7,8 @@ você entender o mercado e melhorar seu currículo. É um projeto pessoal de
 estudo de carreira, pensado para rodar no Windows (mas funciona em qualquer
 SO com Python 3.10+).
 
-As 5 fases do projeto estão concluídas — ver `CLAUDE.md` para o escopo
-completo original. Depois da Fase 5, o projeto ganhou uma 6ª rodada: os
+O projeto nasceu de um planejamento em 5 fases (núcleo, CV/análise,
+coletor, painéis HTML, IA opcional) e depois ganhou uma rodada extra: os
 dados passaram de arquivos JSON para um **banco SQLite local**
 (`data/radar.db`), e ganhou uma **app web local** (Flask) para editar tudo
 no navegador, além dos comandos de linha de comando.
@@ -17,7 +17,7 @@ no navegador, além dos comandos de linha de comando.
 
 1. Você popula vagas de três formas (ver "Como popular os dados" abaixo):
    colando texto (CLI ou navegador), via upload do coletor automático
-   (Greenhouse/Lever/Ashby/SmartRecruiters), ou por `python run.py dividir`
+   (Greenhouse/Lever/Ashby/SmartRecruiters), ou por `python run.py split`
    para e-mails de alerta com várias vagas.
 2. O pipeline limpa o texto, extrai os campos (empresa, local, modalidade,
    salário, restrições, skills...) e detecta skills usando uma taxonomia
@@ -27,7 +27,7 @@ no navegador, além dos comandos de linha de comando.
    lacunas, e aponta um plano de estudo.
 5. Dois jeitos de ver o resultado: a **app web local** (`python run.py
    servir`, com edição ao vivo) ou um **snapshot HTML estático**
-   (`python run.py gerar-html`, para publicar `docs/` no GitHub Pages).
+   (`python run.py generate-html`, para publicar `docs/` no GitHub Pages).
 6. Opcionalmente, pode gerar sugestões de reescrita do CV via IA (Claude
    API ou Ollama local) — desligado por padrão.
 
@@ -51,10 +51,10 @@ data/*.json          taxonomia/configuração editável à mão (versionada no g
 cv/, vagas/, docs/   CV ativo; inbox/raw/processadas da CLI; snapshot público
 ```
 
-Fluxo de dados: qualquer forma de entrada (CLI colar/dividir/coletar, ou o
+Fluxo de dados: qualquer forma de entrada (CLI paste/split/collect, ou o
 formulário "+ Adicionar vaga" da web) passa pelo mesmo
 `radar.parser.montar_vaga()` e termina em `data/radar.db`. A partir daí,
-tanto `python run.py gerar-html` (snapshot estático) quanto as rotas
+tanto `python run.py generate-html` (snapshot estático) quanto as rotas
 `/` e `/privado` da app Flask leem o banco e chamam as **mesmas** funções
 `run.montar_payload_publico()`/`montar_payload_privado()` para montar o
 JSON que o template único de `radar/html.py` renderiza — não há duas
@@ -95,13 +95,13 @@ segredos e superfície de rede.
 - **Segredos:** `ANTHROPIC_API_KEY` só é lida de variável de ambiente,
   nunca logada nem gravada em disco; não há segredo nenhum hardcoded no
   código (auditado com grep por padrões de chave/senha/token).
-- **Rede:** `python run.py servir` só liga em `127.0.0.1` (nunca
+- **Rede:** `python run.py serve` só liga em `127.0.0.1` (nunca
   `0.0.0.0`) e roda com `debug=False` (sem o debugger do Werkzeug, que
   permite execução remota de código se exposto). O coletor usa
   `urllib` com timeout e User-Agent identificado contra só os 4 endpoints
   documentados — nenhuma URL é montada a partir de entrada do usuário sem
   validação de tipo de ATS.
-- **Comandos externos:** o único `subprocess` do projeto (`colar`, fallback
+- **Comandos externos:** o único `subprocess` do projeto (`paste`, fallback
   PowerShell `Get-Clipboard` no Windows) usa lista de argumentos fixa, sem
   `shell=True` nem concatenação de string — sem risco de injeção de
   comando.
@@ -115,10 +115,10 @@ segredos e superfície de rede.
    "Add python.exe to PATH" no instalador).
 2. Baixe/clone este repositório para uma pasta, ex.: `C:\Users\você\radar-de-vagas`.
 3. Abra o PowerShell ou o Prompt de Comando nessa pasta.
-4. `pip install flask` (necessário só para `python run.py servir`, a app
+4. `pip install flask` (necessário só para `python run.py serve`, a app
    web; os comandos de CLI funcionam sem isso).
 5. (Opcional, só se for usar CV em PDF) `pip install pypdf`.
-6. Rode `python run.py servir` e abra `http://localhost:8000` no navegador
+6. Rode `python run.py serve` e abra `http://localhost:8000` no navegador
    — ou `python run.py` para confirmar que a CLI funciona.
 
 Não precisa instalar nenhum servidor de banco de dados: o SQLite é um
@@ -128,17 +128,17 @@ que qualquer comando precisar dele.
 ## Como popular os dados (vagas, perfil, CV, status)
 
 Tudo isso pode ser feito de **duas formas** — CLI ou navegador (`python
-run.py servir`) — e ambas gravam no mesmo banco, então pode misturar as duas
+run.py serve`) — e ambas gravam no mesmo banco, então pode misturar as duas
 como preferir:
 
-| O que | Pela CLI | Pelo navegador (`servir`) |
+| O que | Pela CLI | Pelo navegador (`serve`) |
 |---|---|---|
-| Vaga nova (colada) | `python run.py colar` (lê a área de transferência) ou `python run.py dividir arquivo.txt` | aba **"+ Adicionar vaga"**: cola o texto num formulário |
-| Vagas via coletor automático | `python run.py coletar` (grava na inbox) + `python run.py processar` | botão **"↻ Coletar vagas novas"** no painel privado |
+| Vaga nova (colada) | `python run.py paste` (lê a área de transferência) ou `python run.py split arquivo.txt` | aba **"+ Adicionar vaga"**: cola o texto num formulário |
+| Vagas via coletor automático | `python run.py collect` (grava na inbox) + `python run.py process` | botão **"↻ Coletar vagas novas"** no painel privado |
 | Perfil (cidadania, residência, clearances, idiomas) | editar `privado/perfil.json` manualmente (só na primeira vez — depois disso o banco manda) | aba **"Perfil"**: formulário com os mesmos campos |
 | CV | solte um arquivo em `cv/` (PDF/DOCX/TXT/MD) | (sem upload pela web ainda — continue soltando o arquivo em `cv/`) |
-| Status / notas de uma vaga | `python run.py status <id> <status> --nota "..."` | formulário dentro de cada card, no painel privado |
-| Recalcular elegibilidade/cobertura/lacunas | `python run.py analisar` | botão **"↻ Recalcular análise/CV"** no painel privado |
+| Status / notas de uma vaga | `python run.py status <id> <status> --note "..."` | formulário dentro de cada card, no painel privado |
+| Recalcular elegibilidade/cobertura/lacunas | `python run.py analyze` | botão **"↻ Recalcular análise/CV"** no painel privado |
 
 **Se você já tinha `data/vagas.json` e/ou `privado/perfil.json` de uma
 versão anterior:** na primeira vez que qualquer comando ler os dados, eles
@@ -151,7 +151,7 @@ uso (o banco manda); pode deixá-los ou apagá-los, como preferir.
 **Opção 1 — app web local (recomendado para uso manual):**
 
 ```bash
-python run.py servir
+python run.py serve
 # abra http://localhost:8000 — "+ Adicionar vaga", "Perfil", botões de
 # coletar/analisar e os painéis público/privado, tudo no navegador.
 ```
@@ -160,23 +160,23 @@ python run.py servir
 
 ```bash
 # 1. Trazer vagas novas:
-python run.py colar                 # cola da área de transferência (LinkedIn/Indeed/Gupy)
-python run.py dividir alerta.txt     # ou divide um e-mail de alerta com várias vagas
-python run.py coletar                # ou coleta via API dos ATS configurados em data/fontes.json
+python run.py paste                 # cola da área de transferência (LinkedIn/Indeed/Gupy)
+python run.py split alerta.txt     # ou divide um e-mail de alerta com várias vagas
+python run.py collect                # ou coleta via API dos ATS configurados em data/fontes.json
 
 # 2. Processar (se colar/coletar já não tiver processado):
-python run.py processar
+python run.py process
 
 # 3. Opcional: CV, elegibilidade e análise
-python run.py analisar
+python run.py analyze
 
 # 4. Ver o resultado sem abrir a app web:
-python run.py gerar-html
+python run.py generate-html
 # abra docs/index.html (público) e privado/index.html (privado) no navegador
 ```
 
-`colar` já processa automaticamente depois de salvar na inbox. `coletar`
-só grava `.txt` na inbox — sempre rode `processar` depois (ou use o botão
+`paste` já processa automaticamente depois de salvar na inbox. `collect`
+só grava `.txt` na inbox — sempre rode `process` depois (ou use o botão
 "Coletar vagas novas" da app web, que já processa).
 
 ## Formato do cabeçalho e do separador `=== VAGA ===`
@@ -199,7 +199,7 @@ vagas** separadas por uma linha exatamente assim:
 
 Se um `.txt` tiver várias vagas mas sem esse separador (ex.: um e-mail de
 alerta com "Full job description" repetido), use
-`python run.py dividir arquivo.txt` — ele mostra uma prévia dos cortes
+`python run.py split arquivo.txt` — ele mostra uma prévia dos cortes
 antes de gravar (use `--dry-run` para só ver a prévia, sem gravar nada).
 
 ## Como funciona a limpeza (e os arquivos editáveis em `data/`)
@@ -212,7 +212,7 @@ modalidade), remove ruído de interface, e separa palavras coladas
 (`assessmentsSocial` → `assessments Social`) sem quebrar nomes CamelCase
 conhecidos (`PowerShell`, `BloodHound`, `GitHub`...).
 
-Arquivos editáveis (edite e rode `python run.py reprocessar` depois):
+Arquivos editáveis (edite e rode `python run.py reprocess` depois):
 
 - **`data/ruido.json`**: linhas exatas e regex de ruído de interface/ATS a
   remover (ex.: "Apply Now", "Posted 30+ Days Ago").
@@ -253,7 +253,7 @@ Arquivos editáveis (edite e rode `python run.py reprocessar` depois):
   python -c "import re; print(re.findall(r'SEU_REGEX', 'texto de teste'))"
   ```
 - **Depois de editar `skills.json` (ou qualquer arquivo em `data/`), rode
-  `python run.py reprocessar`** para reaplicar as regras novas a todas as
+  `python run.py reprocess`** para reaplicar as regras novas a todas as
   vagas já salvas, preservando `status`/`notas`.
 
 ### Grupos alternativos ("um destes")
@@ -283,9 +283,9 @@ der 404, teste variações). Edite `data/fontes.json` e troque cada
 `filtros.titulo_inclui`/`titulo_exclui`.
 
 ```bash
-python run.py coletar --dry-run   # só mostra o que seria coletado/arquivado
-python run.py coletar             # grava .txt em vagas/inbox/
-python run.py processar           # processa normalmente
+python run.py collect --dry-run   # só mostra o que seria coletado/arquivado
+python run.py collect             # grava .txt em vagas/inbox/
+python run.py process           # processa normalmente
 ```
 
 - Dedup pela URL já existente no banco.
@@ -293,20 +293,20 @@ python run.py processar           # processa normalmente
   status que você já mudou manualmente não é sobrescrito) vira
   `status: "arquivada"` com a nota "encerrada na fonte", sem apagar.
 - Vaga de empregador do setor público continua sendo marcada `ignorada`
-  pelo `processar` normal.
+  pelo `process` normal.
 - Boas maneiras: User-Agent identificado, timeout de 15s, pausa entre
   requisições, erro isolado por fonte.
 
 **Agendando no Windows** (Agendador de Tarefas): crie uma tarefa que rode
 periodicamente uma ação "Iniciar um programa" com `cmd.exe` e argumentos
-`/c "cd /d C:\caminho\para\jobs && python run.py coletar && python run.py processar"`.
+`/c "cd /d C:\caminho\para\jobs && python run.py collect && python run.py process"`.
 
 **Por que LinkedIn, Indeed e Gupy continuam manuais:** esses sites não têm
 uma API JSON pública de uso livre como os 4 ATS acima — automatizar a
 coleta exigiria raspar HTML autenticado ou contornar proteção
 anti-automação, o que viola os termos de uso deles. Em vez disso: configure
-alertas por e-mail nessas plataformas e use `python run.py colar` (lê a
-área de transferência) ou `python run.py dividir` (quando o e-mail de
+alertas por e-mail nessas plataformas e use `python run.py paste` (lê a
+área de transferência) ou `python run.py split` (quando o e-mail de
 alerta traz várias vagas num só texto).
 
 ## Filtro de mercado privado
@@ -325,7 +325,7 @@ esse campo, mas continua contando normalmente nas estatísticas.
 
 Campos do perfil: `cidadanias` (lista), `residencia` (país), `clearances`
 (lista), `aceita_relocacao` (bool), `idiomas.pt`/`idiomas.en`. Edite pela
-aba **"Perfil"** da app web (`python run.py servir`), ou, se preferir
+aba **"Perfil"** da app web (`python run.py serve`), ou, se preferir
 editar à mão antes do primeiro uso, crie `privado/perfil.json` nesse
 formato — ele é importado automaticamente para o banco na primeira leitura:
 
@@ -341,7 +341,7 @@ formato — ele é importado automaticamente para o banco na primeira leitura:
 
 O padrão (sem nenhum arquivo nem edição) já é `cidadanias: ["BR"]`,
 `residencia: "BR"` — o que você informou — com os demais campos neutros.
-A partir do perfil, `python run.py analisar` (ou o botão "Recalcular
+A partir do perfil, `python run.py analyze` (ou o botão "Recalcular
 análise/CV") calcula, por vaga, `elegivel = sim | nao | talvez` (com
 motivos), guardado no banco — nunca no painel público.
 
@@ -351,7 +351,7 @@ Cada vaga tem um `status`: `novo | interessado | aplicado | entrevista |
 oferta | recusado | arquivada`. Muda pela CLI:
 
 ```bash
-python run.py status v-abc12345 interessado --nota "boa vaga, aplicar essa semana"
+python run.py status v-abc12345 interessado --note "boa vaga, aplicar essa semana"
 ```
 
 ou direto no card da vaga, no painel privado da app web (`python run.py
@@ -364,7 +364,7 @@ não sobrescreve.
 ## IA opcional (sugestões de CV)
 
 ```bash
-python run.py --ia
+python run.py --ai
 ```
 
 **Desligada por padrão** — sem nenhuma variável de ambiente configurada,
@@ -390,10 +390,10 @@ cidadania, residência ou clearance. O resultado vai para
 
 Os dois painéis existem em duas versões, mesmo HTML/CSS/JS por baixo:
 
-- **Ao vivo**, servidos por `python run.py servir` (lê o banco a cada
+- **Ao vivo**, servidos por `python run.py serve` (lê o banco a cada
   request — é o que te dá os formulários de adicionar vaga/editar
   perfil/mudar status/coletar/analisar descritos acima).
-- **Snapshot estático**, gerado por `python run.py gerar-html` em
+- **Snapshot estático**, gerado por `python run.py generate-html` em
   `docs/index.html` + `privado/index.html` — **sem** os formulários de
   edição (só leitura), pensado para publicar `docs/` no GitHub Pages ou
   abrir via `file://` sem precisar rodar nada. Sem CDN: CSS, JS e os dados
@@ -426,7 +426,7 @@ perfil nem trechos do CV.
 
 ### Publicando no GitHub Pages
 
-Rode `python run.py gerar-html` e aponte o GitHub Pages para a pasta
+Rode `python run.py generate-html` e aponte o GitHub Pages para a pasta
 `docs/` (ou para a branch que a contém) — o snapshot estático, não a app
 web (GitHub Pages não roda Python/Flask).
 
@@ -444,7 +444,7 @@ aparecer como rastreável, exceto `cv/README.md`):
   `secoes.json`, `ruido.json`, `filtros.json`, `familias.json`,
   `fontes.json`) são configuração versionável normal, sem dado sensível.
 - `vagas/` inteira (inbox/raw/processadas) — contém texto bruto das vagas
-  (fica populada só se você usar o fluxo de CLI; pelo `servir`, os blocos
+  (fica populada só se você usar o fluxo de CLI; pelo `serve`, os blocos
   colados vão direto para o banco).
 - `tests/fixtures_reais/` — no `.gitignore`.
 
@@ -466,7 +466,7 @@ de vulnerabilidades, Análise de código, C2 e infraestrutura, Evasão,
 Engenharia social/Phishing/OSINT, Testes especializados, Malware dev,
 Metodologias e frameworks, Linguagens, Certificações ofensivas,
 Certificações gerais/gestão, e Soft skills/relatórios. Use
-`python run.py termos` para descobrir termos frequentes que ainda não
+`python run.py terms` para descobrir termos frequentes que ainda não
 estão na taxonomia (candidatos a novas skills).
 
 ## Testes

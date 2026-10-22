@@ -1,4 +1,4 @@
-"""Elegibilidade (seção 11) e fórmulas de análise (seção 12) do prompt mestre.
+"""Elegibilidade e fórmulas de análise de mercado (cobertura, lacunas, ranking).
 
 Convenções desta implementação, fixadas aqui porque a seção 12 não as
 detalha por completo:
@@ -442,4 +442,95 @@ def qualidade_dados(vagas: list[dict]) -> dict:
         "datas_estimadas": sum(1 for v in vagas if v.get("data_estimada")),
         "anos_ambiguos": sum(1 for v in vagas if (v.get("anos_experiencia") or {}).get("ambiguo")),
         "campos_nulos_mais_frequentes": [{"campo": c, "n": qt} for c, qt in campos_nulos.most_common(10)],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Score de perfil (inspirado no SSI do LinkedIn — seção "Meu perfil")
+# ---------------------------------------------------------------------------
+
+CATEGORIA_SOFT_SKILLS = "Soft skills/relatórios"
+
+_PESO_HARD_SKILLS = 0.55
+_PESO_SOFT_SKILLS = 0.20
+_PESO_COMPLETUDE = 0.25
+
+
+def _cobertura_por_categoria(vagas: list[dict], skills_cv: set[tuple[str, str]], categoria: str) -> float | None:
+    total = 0.0
+    atendido = 0.0
+    for vaga in vagas:
+        for u in unidades_de_exigencia(vaga):
+            if not any(m[0] == categoria for m in u["membros"]):
+                continue
+            total += u["peso"]
+            if any(m in skills_cv for m in u["membros"]):
+                atendido += u["peso"]
+    if total == 0:
+        return None
+    return atendido / total
+
+
+def _completude_perfil_profissional(perfil_profissional: dict) -> float:
+    perfil_profissional = perfil_profissional or {}
+    campos = [
+        bool(perfil_profissional.get("headline")),
+        bool(perfil_profissional.get("resumo")),
+        bool(perfil_profissional.get("experiencias")),
+        bool(perfil_profissional.get("educacao")),
+        bool(perfil_profissional.get("skills_linkedin")),
+        bool(perfil_profissional.get("certificacoes")),
+    ]
+    return sum(campos) / len(campos) * 100
+
+
+def calcular_score_perfil(
+    perfil_profissional: dict, skills_cv: set[tuple[str, str]], vagas: list[dict],
+) -> dict:
+    """Score 0-100 combinando cobertura de hard skills do mercado (55%),
+    cobertura de soft skills (20%) e completude do perfil (25%) — mesma
+    referência do SSI do LinkedIn: >= 50 é considerado bom."""
+    cobertura_hard = cobertura_geral(vagas, skills_cv)
+    hard_pct = (cobertura_hard or 0.0) * 100
+
+    cobertura_soft = _cobertura_por_categoria(vagas, skills_cv, CATEGORIA_SOFT_SKILLS)
+    soft_pct = (cobertura_soft or 0.0) * 100 if cobertura_soft is not None else None
+
+    completude_pct = _completude_perfil_profissional(perfil_profissional)
+
+    score = round(
+        hard_pct * _PESO_HARD_SKILLS
+        + (soft_pct or 0.0) * _PESO_SOFT_SKILLS
+        + completude_pct * _PESO_COMPLETUDE
+    )
+
+    perfil_profissional = perfil_profissional or {}
+    sugestoes = []
+    if not perfil_profissional.get("headline"):
+        sugestoes.append("Adicione um headline profissional (o que você faz + especialidade).")
+    if not perfil_profissional.get("resumo"):
+        sugestoes.append("Escreva um resumo/about destacando sua experiência.")
+    if not perfil_profissional.get("experiencias"):
+        sugestoes.append("Cadastre suas experiências profissionais.")
+    if not perfil_profissional.get("skills_linkedin") and not perfil_profissional.get("certificacoes"):
+        sugestoes.append("Importe ou liste suas skills/certificações autodeclaradas.")
+    if hard_pct < 50:
+        sugestoes.append(
+            f"Sua cobertura de hard skills do mercado está em {hard_pct:.0f}% — veja as lacunas na aba Meu CV."
+        )
+    if cobertura_soft is not None and soft_pct < 50:
+        sugestoes.append(
+            "Poucas soft skills (comunicação, mentoria, relatórios) aparecem no seu CV — "
+            "o mercado pede isso com frequência."
+        )
+    if not sugestoes:
+        sugestoes.append("Perfil em bom estado — continue atualizando conforme surgem novas vagas.")
+
+    return {
+        "score": max(0, min(100, score)),
+        "classificacao": "bom" if score >= 50 else "a melhorar",
+        "hard_skills_pct": round(hard_pct),
+        "soft_skills_pct": round(soft_pct) if soft_pct is not None else None,
+        "completude_pct": round(completude_pct),
+        "sugestoes": sugestoes,
     }

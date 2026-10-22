@@ -58,11 +58,11 @@ class TestDedup(unittest.TestCase):
             "Origem: linkedin | Mercado: BR | Status: novo\n---\nPentester\nPython required\n"
         )
         aviso1 = run_mod.processar_bloco(bloco, CONFIG, HOJE, dados)
-        self.assertIn("[processada]", aviso1)
+        self.assertIn("[processed]", aviso1)
         self.assertEqual(len(dados["vagas"]), 1)
 
         aviso2 = run_mod.processar_bloco(bloco, CONFIG, HOJE, dados)
-        self.assertIn("duplicata exata descartada", aviso2)
+        self.assertIn("exact duplicate discarded", aviso2)
         self.assertEqual(len(dados["vagas"]), 1)
 
     def test_quase_duplicata_marcada_mas_nao_descartada(self):
@@ -71,7 +71,7 @@ class TestDedup(unittest.TestCase):
         bloco2 = "Pentester\nTeste de intrusão em aplicações web usando Burp Suite e Nmap diariamente para o cliente!\n"
         run_mod.processar_bloco(bloco1, CONFIG, HOJE, dados)
         aviso2 = run_mod.processar_bloco(bloco2, CONFIG, HOJE, dados)
-        self.assertIn("possível duplicata de", aviso2)
+        self.assertIn("possible duplicate of", aviso2)
         self.assertEqual(len(dados["vagas"]), 2)
         self.assertIsNotNone(dados["vagas"][1]["possivel_duplicata_de"])
 
@@ -79,7 +79,7 @@ class TestDedup(unittest.TestCase):
         dados = {"schema_version": 1, "vagas": []}
         bloco = "Analista\nConcurso público para órgão público municipal.\n"
         aviso = run_mod.processar_bloco(bloco, CONFIG, HOJE, dados)
-        self.assertIn("[ignorada]", aviso)
+        self.assertIn("[ignored]", aviso)
         self.assertEqual(len(dados["vagas"]), 1)
         self.assertTrue(dados["vagas"][0]["ignorada"])
 
@@ -110,7 +110,7 @@ class TestStatusEExportar(unittest.TestCase):
     def test_status_atualiza_vaga_existente(self):
         vaga = {"id": "v-abcd1234", "status": "novo", "notas": None}
         run_mod.salvar_vagas({"schema_version": 1, "vagas": [vaga]})
-        args = argparse.Namespace(id="v-abcd1234", novo_status="interessado", nota="gostei")
+        args = argparse.Namespace(id="v-abcd1234", new_status="interessado", note="gostei")
         run_mod.cmd_status(args)
         dados = run_mod.carregar_vagas()
         self.assertEqual(dados["vagas"][0]["status"], "interessado")
@@ -118,7 +118,7 @@ class TestStatusEExportar(unittest.TestCase):
 
     def test_status_vaga_inexistente_nao_quebra(self):
         run_mod.salvar_vagas({"schema_version": 1, "vagas": []})
-        args = argparse.Namespace(id="v-naoexiste", novo_status="interessado", nota=None)
+        args = argparse.Namespace(id="v-naoexiste", new_status="interessado", note=None)
         run_mod.cmd_status(args)  # não deve lançar exceção
 
     def test_exportar_gera_csv_sem_contato_e_texto_bruto(self):
@@ -202,7 +202,7 @@ class TestColetar(unittest.TestCase):
         run_mod.cmd_coletar(argparse.Namespace(dry_run=False))
         dados = run_mod.carregar_vagas()
         self.assertEqual(dados["vagas"][0]["status"], "arquivada")
-        self.assertEqual(dados["vagas"][0]["notas"], "encerrada na fonte")
+        self.assertEqual(dados["vagas"][0]["notas"], "closed at source")
 
     def test_vaga_que_sumiu_mas_ja_em_entrevista_nao_e_sobrescrita(self):
         self._vagas_fake = []

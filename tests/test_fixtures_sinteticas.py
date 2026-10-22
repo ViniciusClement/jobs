@@ -138,13 +138,13 @@ class TestFixtureDedup(unittest.TestCase):
         blocos = parser.dividir_arquivo(_ler("dedup_exata.txt"))
         dados, avisos = _processar_blocos_em_tmp(blocos)
         self.assertEqual(len(dados["vagas"]), 1)
-        self.assertIn("duplicata exata descartada", avisos[1])
+        self.assertIn("exact duplicate discarded", avisos[1])
 
     def test_dedup_quase_duplicata(self):
         blocos = parser.dividir_arquivo(_ler("dedup_quase.txt"))
         dados, avisos = _processar_blocos_em_tmp(blocos)
         self.assertEqual(len(dados["vagas"]), 2)
-        self.assertIn("possível duplicata de", avisos[1])
+        self.assertIn("possible duplicate of", avisos[1])
 
 
 if __name__ == "__main__":

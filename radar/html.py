@@ -139,6 +139,11 @@ header{position:sticky;top:0;z-index:10;background:var(--bg);padding:16px 0 10px
   border-bottom:1px solid var(--border);margin-bottom:4px}
 header h1{margin:0 0 4px;font-size:1.3rem;font-weight:700;letter-spacing:-.01em}
 header p{margin:0;color:var(--muted);font-size:.85rem}
+.site-nav{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px}
+.site-nav a{color:var(--muted);text-decoration:none;font-size:.82rem;font-weight:600;
+  padding:4px 0;border-bottom:2px solid transparent}
+.site-nav a:hover{color:var(--accent)}
+.site-nav a.atual{color:var(--accent);border-bottom-color:var(--accent)}
 nav.abas{display:flex;gap:4px;margin:14px 0 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
 nav.abas button{background:none;border:none;color:var(--muted);padding:9px 16px;cursor:pointer;
   border-bottom:2px solid transparent;font-size:.88rem;font-weight:600;border-radius:6px 6px 0 0;
@@ -217,6 +222,20 @@ table.tabela-vagas tbody tr:nth-child(even){background:color-mix(in srgb, var(--
 .alternador-visualizacao button{border:1px solid var(--border);background:var(--card);color:var(--muted);
   border-radius:6px;padding:5px 12px;font-size:.8rem;cursor:pointer}
 .alternador-visualizacao button.ativo{background:var(--accent);color:#fff;border-color:var(--accent)}
+.kpis-executivos{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:16px 0}
+.kpi-tile{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;
+  position:relative;overflow:hidden}
+.kpi-tile.destaque{border-color:var(--accent)}
+.kpi-tile .kpi-rotulo{font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.kpi-tile .kpi-valor{font-size:2rem;font-weight:800;margin:4px 0 2px;line-height:1}
+.kpi-tile .kpi-nota{font-size:.76rem;color:var(--muted)}
+.kpi-tile a{color:inherit;text-decoration:none;display:block}
+.kpi-tile a:hover .kpi-valor{color:var(--accent)}
+.grafico-linha{width:100%;height:auto}
+.grafico-linha .eixo{stroke:var(--border);stroke-width:1}
+.grafico-linha .linha{fill:none;stroke:var(--accent);stroke-width:2.5}
+.grafico-linha .ponto{fill:var(--accent)}
+.grafico-linha text{fill:var(--muted);font-size:9px}
 footer{margin-top:30px;color:var(--muted);font-size:.78rem}
 @media (max-width:480px){
   .barra-linha .nome{flex-basis:100px}
@@ -227,6 +246,13 @@ footer{margin-top:30px;color:var(--muted);font-size:.78rem}
 <header>
   <h1>__TITULO__</h1>
   <p id="subtitulo"></p>
+  <nav class="site-nav" id="site-nav" hidden>
+    <a href="/">Painel público</a>
+    <a href="/privado">Painel privado</a>
+    <a href="/perfil-profissional">Meu perfil</a>
+    <a href="/adicionar">+ Adicionar vaga</a>
+    <a href="/perfil">Configurar perfil</a>
+  </nav>
 </header>
 
 <nav class="abas">
@@ -241,6 +267,7 @@ footer{margin-top:30px;color:var(--muted);font-size:.78rem}
     <form method="post" action="/acoes/coletar" style="margin:0"><button type="submit">↻ Coletar vagas novas</button></form>
     <form method="post" action="/acoes/analisar" style="margin:0"><button type="submit">↻ Recalcular análise/CV</button></form>
   </div>
+  <div class="kpis-executivos" id="kpis-executivos"></div>
   <div class="grade" id="grade-painel"></div>
   <div class="grade">
     <div class="painel-card">
@@ -429,16 +456,54 @@ function renderBarras(container, linhas, rotuloFn, max){
   if (!linhas.length) container.appendChild(el('p', {class:'vazio', texto:'Sem dados neste recorte.'}));
 }
 
+function renderKpis(vagas){
+  const cont = document.getElementById('kpis-executivos');
+  cont.innerHTML = '';
+
+  function tile(rotulo, valor, nota, destaque, href){
+    const inner = [el('div', {class:'kpi-rotulo', texto: rotulo}), el('div', {class:'kpi-valor', texto: valor})];
+    if (nota) inner.push(el('div', {class:'kpi-nota', texto: nota}));
+    const tileEl = el('div', {class: 'kpi-tile' + (destaque ? ' destaque' : '')});
+    if (href){
+      const a = el('a', {href: href});
+      for (const n of inner) a.appendChild(n);
+      tileEl.appendChild(a);
+    } else {
+      for (const n of inner) tileEl.appendChild(n);
+    }
+    cont.appendChild(tileEl);
+  }
+
+  tile('Vagas ativas (' + recorteAtual + ')', String(vagas.length), null, false);
+
+  const dist = distribuicao(vagas, 'modalidade');
+  const remoto = dist['remoto'];
+  tile('Modalidade remoto', remoto ? formatarPct(remoto.percentual) : 'n/d',
+    remoto ? remoto.n + ' de ' + vagas.length + ' vaga(s)' : 'sem dados', false);
+
+  const ranking = rankingSkills(vagas);
+  tile('Skill #1 do mercado', ranking.length ? ranking[0].skill : '—',
+    ranking.length ? 'em ' + formatarPct(ranking[0].percentual) + ' das vagas' : 'sem dados', false);
+
+  if (DADOS.privado){
+    const coberturaAtual = (DADOS.cobertura_por_recorte || {})[recorteAtual];
+    tile('Cobertura do CV', formatarPct(coberturaAtual), 'recorte: ' + recorteAtual, true);
+
+    if (DADOS.score_perfil){
+      tile('Score de perfil', DADOS.score_perfil.score + '/100',
+        DADOS.score_perfil.classificacao + ' (referência: 50+)', true, '/perfil-profissional');
+    }
+
+    const lacunasAltas = ((DADOS.meu_cv || {}).lacunas || []).filter(l => l.prioridade === 'alta').length;
+    tile('Lacunas de alta prioridade', String(lacunasAltas), 'veja a aba Meu CV', lacunasAltas > 0);
+  }
+}
+
 function renderPainel(){
   const vagas = vagasDoRecorte(recorteAtual);
   const grade = document.getElementById('grade-painel');
   grade.innerHTML = '';
-
-  const totaisCard = el('div', {class:'painel-card'});
-  totaisCard.appendChild(el('h3', {texto:'Totais (recorte: ' + recorteAtual + ')'}));
-  const totais = el('div', {class:'totais'});
-  totais.appendChild(el('div', {}, [el('div', {class:'num', texto: vagas.length}), el('div', {class:'rotulo', texto:'vagas ativas'})]));
-  grade.appendChild(totaisCard); totaisCard.appendChild(totais);
+  renderKpis(vagas);
 
   const skillsCard = el('div', {class:'painel-card'});
   skillsCard.appendChild(el('h3', {texto:'Top 15 skills'}));
@@ -623,6 +688,10 @@ function renderCardVaga(v){
   }
 
   if (v.url) card.appendChild(el('a', {class:'link-vaga', href: v.url, target:'_blank', rel:'noopener', texto:'Ver vaga original →'}));
+  if (DADOS.privado && DADOS.app_viva){
+    card.appendChild(document.createTextNode(' '));
+    card.appendChild(el('a', {class:'link-vaga', href: '/privado/vaga/' + v.id + '/editar', texto:'✎ Editar campos'}));
+  }
 
   if (DADOS.privado){
     if (DADOS.app_viva){
@@ -788,11 +857,65 @@ function renderMeuCv(){
   const entradas = (cv.historico || []).filter(h => h.recorte === 'todos').sort((a,b)=> a.data.localeCompare(b.data));
   if (!entradas.length){ evolCont.appendChild(el('p', {class:'vazio', texto:'Sem histórico ainda.'})); }
   else {
+    renderGraficoLinha(evolCont, entradas, 'cobertura_geral');
     const tabela = el('table');
     tabela.innerHTML = '<tr><th>Data</th><th>Vagas ativas</th><th>Cobertura geral</th></tr>' +
       entradas.map(h => '<tr><td>'+h.data+'</td><td>'+h.n_vagas_ativas+'</td><td>'+formatarPct(h.cobertura_geral)+'</td></tr>').join('');
     evolCont.appendChild(tabela);
   }
+}
+
+function renderGraficoLinha(container, entradas, campo){
+  const pontos = entradas.filter(e => e[campo] !== null && e[campo] !== undefined);
+  if (pontos.length < 2){
+    container.appendChild(el('p', {class:'vazio', texto:'Pontos insuficientes para o gráfico (mínimo 2 dias com dado).'}));
+    return;
+  }
+  const largura = 560, altura = 160, margem = 28;
+  const valores = pontos.map(p => p[campo]);
+  const minV = Math.min(...valores, 0);
+  const maxV = Math.max(...valores, minV + 0.01);
+  const passoX = (largura - margem * 2) / (pontos.length - 1);
+  const escalaY = v => altura - margem - ((v - minV) / (maxV - minV)) * (altura - margem * 2);
+  const coords = pontos.map((p, i) => [margem + i * passoX, escalaY(p[campo])]);
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', '0 0 ' + largura + ' ' + altura);
+  svg.setAttribute('class', 'grafico-linha');
+
+  const eixo = document.createElementNS(svgNS, 'line');
+  eixo.setAttribute('x1', margem); eixo.setAttribute('x2', largura - margem);
+  eixo.setAttribute('y1', altura - margem); eixo.setAttribute('y2', altura - margem);
+  eixo.setAttribute('class', 'eixo');
+  svg.appendChild(eixo);
+
+  const linha = document.createElementNS(svgNS, 'polyline');
+  linha.setAttribute('points', coords.map(c => c.join(',')).join(' '));
+  linha.setAttribute('class', 'linha');
+  svg.appendChild(linha);
+
+  coords.forEach(([x, y], i) => {
+    const ponto = document.createElementNS(svgNS, 'circle');
+    ponto.setAttribute('cx', x); ponto.setAttribute('cy', y); ponto.setAttribute('r', 3);
+    ponto.setAttribute('class', 'ponto');
+    const tituloEl = document.createElementNS(svgNS, 'title');
+    tituloEl.textContent = pontos[i].data + ': ' + formatarPct(pontos[i][campo]);
+    ponto.appendChild(tituloEl);
+    svg.appendChild(ponto);
+  });
+
+  const txtInicio = document.createElementNS(svgNS, 'text');
+  txtInicio.setAttribute('x', margem); txtInicio.setAttribute('y', altura - 8); txtInicio.setAttribute('text-anchor', 'start');
+  txtInicio.textContent = pontos[0].data;
+  svg.appendChild(txtInicio);
+
+  const txtFim = document.createElementNS(svgNS, 'text');
+  txtFim.setAttribute('x', largura - margem); txtFim.setAttribute('y', altura - 8); txtFim.setAttribute('text-anchor', 'end');
+  txtFim.textContent = pontos[pontos.length - 1].data;
+  svg.appendChild(txtFim);
+
+  container.appendChild(svg);
 }
 
 function montarSeletorRecorte(){
@@ -825,6 +948,15 @@ for (const btn of document.querySelectorAll('nav.abas button')){
 
 if (DADOS.privado) document.getElementById('rotulo-so-elegiveis').hidden = false;
 if (DADOS.privado && DADOS.app_viva) document.getElementById('acoes-app-viva').hidden = false;
+
+if (DADOS.app_viva){
+  const siteNav = document.getElementById('site-nav');
+  siteNav.hidden = false;
+  const caminhoAtual = window.location.pathname;
+  for (const a of siteNav.querySelectorAll('a')){
+    if (a.getAttribute('href') === caminhoAtual) a.classList.add('atual');
+  }
+}
 
 montarSeletorRecorte();
 construirListasDeFiltro();

@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS perfil (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     dados TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS perfil_profissional (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    dados TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS elegibilidade (
     vaga_id TEXT PRIMARY KEY,
     dados TEXT NOT NULL
@@ -108,6 +112,24 @@ def salvar_perfil(conn: sqlite3.Connection, perfil: dict) -> None:
     conn.execute(
         "INSERT INTO perfil (id, dados) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET dados = excluded.dados",
         (json.dumps(perfil, ensure_ascii=False),),
+    )
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Perfil profissional (estilo LinkedIn — nome, headline, experiências...)
+# ---------------------------------------------------------------------------
+
+def obter_perfil_profissional(conn: sqlite3.Connection) -> dict | None:
+    linha = conn.execute("SELECT dados FROM perfil_profissional WHERE id = 1").fetchone()
+    return json.loads(linha["dados"]) if linha else None
+
+
+def salvar_perfil_profissional(conn: sqlite3.Connection, perfil_profissional: dict) -> None:
+    conn.execute(
+        "INSERT INTO perfil_profissional (id, dados) VALUES (1, ?) "
+        "ON CONFLICT(id) DO UPDATE SET dados = excluded.dados",
+        (json.dumps(perfil_profissional, ensure_ascii=False),),
     )
     conn.commit()
 

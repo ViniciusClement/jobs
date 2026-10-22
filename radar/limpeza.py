@@ -1,4 +1,4 @@
-"""Normalização de texto bruto de vagas (seção 5 do prompt mestre)."""
+"""Normalização de texto bruto de vagas (mojibake, HTML, ruído, listas)."""
 
 from __future__ import annotations
 

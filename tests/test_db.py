@@ -75,6 +75,29 @@ class TestPerfil(unittest.TestCase):
         self.assertEqual(db.obter_perfil(self.conn), {"cidadanias": ["US"]})
 
 
+class TestPerfilProfissional(unittest.TestCase):
+    def setUp(self):
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.conn = db.conectar(Path(self.tmpdir.name) / "radar.db")
+
+    def tearDown(self):
+        self.conn.close()
+        self.tmpdir.cleanup()
+
+    def test_sem_perfil_profissional_retorna_none(self):
+        self.assertIsNone(db.obter_perfil_profissional(self.conn))
+
+    def test_salvar_e_obter(self):
+        perfil = {"nome": "Fulano", "headline": "Pentester", "experiencias": []}
+        db.salvar_perfil_profissional(self.conn, perfil)
+        self.assertEqual(db.obter_perfil_profissional(self.conn), perfil)
+
+    def test_salvar_duas_vezes_sobrescreve(self):
+        db.salvar_perfil_profissional(self.conn, {"nome": "A"})
+        db.salvar_perfil_profissional(self.conn, {"nome": "B"})
+        self.assertEqual(db.obter_perfil_profissional(self.conn), {"nome": "B"})
+
+
 class TestElegibilidade(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()

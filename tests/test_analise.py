@@ -258,5 +258,33 @@ class TestOutrasFormulas(unittest.TestCase):
         self.assertEqual(resultado["status"], "dados insuficientes")
 
 
+class TestScorePerfil(unittest.TestCase):
+    def test_perfil_vazio_sem_skills_tem_score_baixo(self):
+        resultado = analise.calcular_score_perfil({}, set(), TODAS)
+        self.assertLess(resultado["score"], 50)
+        self.assertEqual(resultado["classificacao"], "a melhorar")
+        self.assertEqual(resultado["completude_pct"], 0)
+
+    def test_perfil_completo_com_boa_cobertura_tem_score_alto(self):
+        perfil_completo = {
+            "headline": "Pentester", "resumo": "...", "experiencias": [{"empresa": "X"}],
+            "educacao": [{"detalhe": "Y"}], "skills_linkedin": ["Python"], "certificacoes": ["OSCP"],
+        }
+        skills_amplo = SKILLS_CV | {("Metodologias e frameworks", "MITRE ATT&CK")}
+        resultado = analise.calcular_score_perfil(perfil_completo, skills_amplo, TODAS)
+        self.assertEqual(resultado["completude_pct"], 100)
+        self.assertGreaterEqual(resultado["score"], 50)
+        self.assertEqual(resultado["classificacao"], "bom")
+
+    def test_score_fica_entre_0_e_100(self):
+        resultado = analise.calcular_score_perfil({}, set(), [])
+        self.assertGreaterEqual(resultado["score"], 0)
+        self.assertLessEqual(resultado["score"], 100)
+
+    def test_sempre_ha_pelo_menos_uma_sugestao(self):
+        resultado = analise.calcular_score_perfil({}, set(), TODAS)
+        self.assertTrue(len(resultado["sugestoes"]) > 0)
+
+
 if __name__ == "__main__":
     unittest.main()

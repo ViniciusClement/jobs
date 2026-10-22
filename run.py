@@ -164,6 +164,42 @@ def listar_historico() -> list[dict]:
         conn.close()
 
 
+def obter_perfil_profissional() -> dict:
+    conn = _conectar_db()
+    try:
+        return db.obter_perfil_profissional(conn) or {}
+    finally:
+        conn.close()
+
+
+def salvar_perfil_profissional(perfil_profissional: dict) -> None:
+    conn = _conectar_db()
+    try:
+        db.salvar_perfil_profissional(conn, perfil_profissional)
+    finally:
+        conn.close()
+
+
+def obter_vaga(vaga_id: str) -> dict | None:
+    conn = _conectar_db()
+    try:
+        return db.obter_vaga(conn, vaga_id)
+    finally:
+        conn.close()
+
+
+def atualizar_vaga(vaga_id: str, campos: dict) -> bool:
+    """Atualiza campos de uma vaga já existente (edição manual de dados
+    extraídos, ex.: título/empresa/local, diferente de só status/notas)."""
+    dados_vagas = carregar_vagas()
+    for v in dados_vagas["vagas"]:
+        if v["id"] == vaga_id:
+            v.update(campos)
+            salvar_vagas(dados_vagas)
+            return True
+    return False
+
+
 def gerar_ficha_md(vaga: dict) -> str:
     linhas = [
         f"# {vaga['titulo'] or '(sem título)'}",
@@ -194,12 +230,12 @@ def processar_bloco(bloco: str, config: dict, data_processamento: date, dados_va
 
     if vaga["ignorada"]:
         dados_vagas["vagas"].append(vaga)
-        return f"[ignorada] {vaga['titulo'] or vaga['id']}: {vaga['ignorada_motivo']}"
+        return f"[ignored] {vaga['titulo'] or vaga['id']}: {vaga['ignorada_motivo']}"
 
     existentes = dados_vagas["vagas"]
     for existente in existentes:
         if existente["chave_dedup"] == vaga["chave_dedup"]:
-            return f"[duplicata exata descartada] {vaga['titulo'] or vaga['id']}"
+            return f"[exact duplicate discarded] {vaga['titulo'] or vaga['id']}"
 
     melhor_ratio = 0.0
     melhor_id = None
@@ -214,7 +250,7 @@ def processar_bloco(bloco: str, config: dict, data_processamento: date, dados_va
     aviso = ""
     if melhor_ratio > 0.9 and melhor_id:
         vaga["possivel_duplicata_de"] = melhor_id
-        aviso = f"[possível duplicata de {melhor_id}, similaridade {melhor_ratio:.2f}] "
+        aviso = f"[possible duplicate of {melhor_id}, similarity {melhor_ratio:.2f}] "
 
     dados_vagas["vagas"].append(vaga)
 
@@ -222,7 +258,7 @@ def processar_bloco(bloco: str, config: dict, data_processamento: date, dados_va
     slug_arquivo = f"{vaga['data']}-{vaga['slug']}.md"
     (PROCESSADAS_DIR / slug_arquivo).write_text(gerar_ficha_md(vaga), encoding="utf-8")
 
-    return f"{aviso}[processada] {vaga['titulo'] or vaga['id']} ({vaga['id']})"
+    return f"{aviso}[processed] {vaga['titulo'] or vaga['id']} ({vaga['id']})"
 
 
 def cmd_processar(args) -> None:
@@ -232,13 +268,13 @@ def cmd_processar(args) -> None:
 
     arquivos = sorted(INBOX_DIR.glob("*.txt"))
     if not arquivos:
-        print("Nenhum arquivo novo em vagas/inbox/.")
+        print("No new files in vagas/inbox/.")
         return
 
     for caminho in arquivos:
         texto = _ler_texto(caminho)
         blocos = parser.dividir_arquivo(texto)
-        print(f"\n== {caminho.name} ({len(blocos)} vaga(s)) ==")
+        print(f"\n== {caminho.name} ({len(blocos)} job(s)) ==")
         for bloco in blocos:
             print(processar_bloco(bloco, config, hoje, dados_vagas))
 
@@ -249,7 +285,7 @@ def cmd_processar(args) -> None:
         caminho.replace(destino)
 
     salvar_vagas(dados_vagas)
-    print(f"\n{len(dados_vagas['vagas'])} vaga(s) no banco (data/radar.db).")
+    print(f"\n{len(dados_vagas['vagas'])} job(s) in the database (data/radar.db).")
 
 
 def _dividir_heuristico(texto: str) -> list[str]:
@@ -267,32 +303,32 @@ def _dividir_heuristico(texto: str) -> list[str]:
 
 
 def cmd_dividir(args) -> None:
-    caminho = Path(args.arquivo)
+    caminho = Path(args.file)
     texto = _ler_texto(caminho)
     blocos = parser.dividir_arquivo(texto)
-    origem = "separador '=== VAGA ==='"
+    origem = "'=== VAGA ===' separator"
     if len(blocos) <= 1:
         blocos = _dividir_heuristico(texto)
-        origem = "heurística (sem separador encontrado)"
+        origem = "heuristic (no separator found)"
 
-    print(f"Prévia da divisão ({origem}): {len(blocos)} bloco(s).\n")
+    print(f"Split preview ({origem}): {len(blocos)} block(s).\n")
     for i, bloco in enumerate(blocos, start=1):
-        primeira_linha = next((l.strip() for l in bloco.split("\n") if l.strip()), "(vazio)")
-        print(f"  Bloco {i}: {len(bloco)} caracteres — início: \"{primeira_linha[:70]}\"")
+        primeira_linha = next((l.strip() for l in bloco.split("\n") if l.strip()), "(empty)")
+        print(f"  Block {i}: {len(bloco)} characters — starts with: \"{primeira_linha[:70]}\"")
 
     if len(blocos) <= 1:
-        print("\nAviso: não foi possível dividir com segurança; nada será separado.")
+        print("\nWarning: could not split safely; nothing will be separated.")
         return
 
     if args.dry_run:
-        print("\n--dry-run: nenhum arquivo foi gravado.")
+        print("\n--dry-run: no file was written.")
         return
 
     INBOX_DIR.mkdir(parents=True, exist_ok=True)
     for i, bloco in enumerate(blocos, start=1):
         destino = INBOX_DIR / f"{caminho.stem}-{i:02d}.txt"
         destino.write_text(bloco.strip() + "\n", encoding="utf-8")
-        print(f"Gravado: {destino}")
+        print(f"Saved: {destino}")
 
 
 def cmd_reprocessar(args) -> None:
@@ -312,20 +348,20 @@ def cmd_reprocessar(args) -> None:
         novas.append(nova)
     dados_vagas["vagas"] = novas
     salvar_vagas(dados_vagas)
-    print(f"Reprocessadas {len(novas)} vaga(s).")
+    print(f"Reprocessed {len(novas)} job(s).")
 
 
 def cmd_status(args) -> None:
     dados_vagas = carregar_vagas()
     for vaga in dados_vagas["vagas"]:
         if vaga["id"] == args.id:
-            vaga["status"] = args.novo_status
-            if args.nota:
-                vaga["notas"] = args.nota
+            vaga["status"] = args.new_status
+            if args.note:
+                vaga["notas"] = args.note
             salvar_vagas(dados_vagas)
-            print(f"Status de {args.id} atualizado para '{args.novo_status}'.")
+            print(f"Status of {args.id} updated to '{args.new_status}'.")
             return
-    print(f"Vaga {args.id} não encontrada.")
+    print(f"Job {args.id} not found.")
 
 
 def cmd_termos(args) -> None:
@@ -354,10 +390,10 @@ def cmd_termos(args) -> None:
                 contexto.setdefault(bigrama, linha.strip()[:100])
 
     if not contagem:
-        print("Sem termos suficientes (nenhuma vaga processada ainda?).")
+        print("Not enough terms (no job processed yet?).")
         return
 
-    print("Top termos/bigramas fora da taxonomia:\n")
+    print("Top terms/bigrams outside the taxonomy:\n")
     for termo, n in sorted(contagem.items(), key=lambda item: -item[1])[: args.top]:
         print(f"  {n:4d}x  {termo}   (ex.: \"{contexto.get(termo, '')}\")")
 
@@ -369,7 +405,7 @@ def cmd_exportar(args) -> None:
     dados_vagas = carregar_vagas()
     vagas = dados_vagas["vagas"]
     if not vagas:
-        print("Nenhuma vaga para exportar.")
+        print("No jobs to export.")
         return
     campos = [c for c in vagas[0].keys() if c not in _CAMPOS_CSV_EXCLUIR]
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -385,7 +421,7 @@ def cmd_exportar(args) -> None:
                     valor = json.dumps(valor, ensure_ascii=False)
                 linha[c] = valor
             writer.writerow(linha)
-    print(f"Exportado: {destino} ({len(vagas)} vaga(s)).")
+    print(f"Exported: {destino} ({len(vagas)} job(s)).")
 
 
 def _formatar_percentual(valor) -> str:
@@ -511,7 +547,7 @@ def cmd_analisar(args) -> None:
         status, motivos = analise.calcular_elegibilidade(vaga, perfil)
         elegibilidade[vaga["id"]] = {"elegivel": status, "motivos": motivos}
     salvar_elegibilidade(elegibilidade)
-    print(f"Elegibilidade calculada para {len(elegibilidade)} vaga(s) (banco de dados).")
+    print(f"Eligibility calculated for {len(elegibilidade)} job(s) (database).")
 
     hoje = date.today()
 
@@ -526,7 +562,7 @@ def cmd_analisar(args) -> None:
             "n_vagas_ativas": len(vagas_recorte), "cobertura_geral": cobertura,
         })
 
-    print(f"Histórico atualizado ({len(analise.RECORTES)} recorte(s) de hoje).")
+    print(f"History updated ({len(analise.RECORTES)} scope(s) for today).")
 
     vagas_todos = analise.filtrar_recorte(todas_vagas, "todos", perfil)
     lacunas = analise.calcular_lacunas(vagas_todos, skills_cv) if cv_utilizavel else []
@@ -572,17 +608,17 @@ def cmd_coletar(args) -> None:
 
         coletor_fn = coletor.COLETORES.get(tipo)
         if coletor_fn is None:
-            print(f"[{tipo}] tipo de ATS desconhecido (use greenhouse/lever/ashby/smartrecruiters) — pulando.")
+            print(f"[{tipo}] unknown ATS type (use greenhouse/lever/ashby/smartrecruiters) — skipping.")
             continue
         if not slug or slug == "TROCAR":
-            print(f"[{tipo}] slug ainda não configurado em data/fontes.json ('TROCAR') — pulando.")
+            print(f"[{tipo}] slug not configured yet in data/fontes.json ('TROCAR') — skipping.")
             continue
 
         print(f"\n== {tipo}:{slug} ==")
         try:
             vagas_coletadas = coletor_fn(slug)
         except Exception as exc:
-            print(f"  erro ao coletar {tipo}:{slug}: {exc}")
+            print(f"  error collecting {tipo}:{slug}: {exc}")
             continue
 
         urls_desta_fonte: set[str] = set()
@@ -600,7 +636,7 @@ def cmd_coletar(args) -> None:
 
             texto_txt = coletor.montar_texto_vaga(vaga, tipo, mercado, empresa_padrao)
             if args.dry_run:
-                print(f"  [dry-run] nova vaga: {vaga.get('titulo')} ({url_normalizada})")
+                print(f"  [dry-run] new job: {vaga.get('titulo')} ({url_normalizada})")
                 total_novas += 1
                 continue
 
@@ -608,7 +644,7 @@ def cmd_coletar(args) -> None:
             slug_arquivo = parser.gerar_slug(vaga.get("titulo"), empresa_padrao)
             nome_arquivo = f"coletor-{tipo}-{slug_arquivo}.txt"
             (INBOX_DIR / nome_arquivo).write_text(texto_txt, encoding="utf-8")
-            print(f"  nova vaga: {vaga.get('titulo')} -> vagas/inbox/{nome_arquivo}")
+            print(f"  new job: {vaga.get('titulo')} -> vagas/inbox/{nome_arquivo}")
             total_novas += 1
 
         # Vaga que sumiu da fonte (mesma origem+slug, não vista nesta coleta,
@@ -624,14 +660,14 @@ def cmd_coletar(args) -> None:
             if url_existente in urls_desta_fonte:
                 continue
             if args.dry_run:
-                print(f"  [dry-run] sumiu da fonte, seria arquivada: {existente.get('titulo')}")
+                print(f"  [dry-run] disappeared from source, would be archived: {existente.get('titulo')}")
                 total_arquivadas += 1
                 continue
             existente["status"] = "arquivada"
             nota_antiga = existente.get("notas")
-            existente["notas"] = f"{nota_antiga}; encerrada na fonte" if nota_antiga else "encerrada na fonte"
+            existente["notas"] = f"{nota_antiga}; closed at source" if nota_antiga else "closed at source"
             total_arquivadas += 1
-            print(f"  arquivada (encerrada na fonte): {existente.get('titulo')}")
+            print(f"  archived (closed at source): {existente.get('titulo')}")
 
         coletor._pausar()
 
@@ -639,13 +675,13 @@ def cmd_coletar(args) -> None:
         salvar_vagas(dados_vagas)
 
     print(
-        f"\nColeta concluída: {total_novas} nova(s), {total_ja_coletadas} já coletada(s) (dedup por URL), "
-        f"{total_arquivadas} arquivada(s) por terem saído da fonte."
+        f"\nCollection complete: {total_novas} new, {total_ja_coletadas} already collected (dedup by URL), "
+        f"{total_arquivadas} archived for having left the source."
     )
     if args.dry_run:
-        print("--dry-run: nada foi gravado (nem .txt na inbox, nem o banco).")
+        print("--dry-run: nothing was saved (no .txt in the inbox, no database write).")
     else:
-        print("As vagas novas estão em vagas/inbox/ — rode 'python run.py processar' para processá-las.")
+        print("New jobs are in vagas/inbox/ — run 'python run.py process' to process them.")
 
 
 def montar_payload_publico(vagas: list[dict]) -> dict:
@@ -681,7 +717,7 @@ def montar_payload_privado(vagas: list[dict]) -> dict:
                 config = carregar_config()
                 skills_cv = cv_mod.detectar_skills_cv(texto_cv, config["skills_regras"])
         except Exception as exc:
-            print(f"Aviso: não foi possível ler o CV para o painel privado: {exc}")
+            print(f"Warning: could not read the CV for the private dashboard: {exc}")
 
     vagas_privadas = []
     elegibilidade_calculada = {}
@@ -700,6 +736,18 @@ def montar_payload_privado(vagas: list[dict]) -> dict:
         l["prioridade"] = _prioridade_lacuna(l["score_lacuna"])
     lacunas.sort(key=lambda l: -l["score_lacuna"])
 
+    # KPIs executivos: cobertura geral por recorte (precisa da lógica de
+    # unidade de exigência/grupo alternativo, que só existe em Python) e o
+    # score de perfil — o resto dos KPIs (totais, top skill...) o JS já
+    # calcula a partir do array de vagas embutido, sem precisar disso.
+    cobertura_por_recorte = {}
+    for recorte in analise.RECORTES:
+        vagas_recorte = analise.filtrar_recorte(vagas, recorte, perfil)
+        cobertura_por_recorte[recorte] = analise.cobertura_geral(vagas_recorte, skills_cv) if cv_utilizavel else None
+
+    perfil_profissional = obter_perfil_profissional()
+    score_perfil = analise.calcular_score_perfil(perfil_profissional, skills_cv, vagas)
+
     return {
         "gerado_em": datetime.now().isoformat(timespec="minutes"),
         "privado": True,
@@ -709,6 +757,8 @@ def montar_payload_privado(vagas: list[dict]) -> dict:
         "tendencia": analise.tendencia_skills(vagas, hoje),
         "qualidade_dados": analise.qualidade_dados(vagas),
         "meu_cv": {"cv_utilizavel": cv_utilizavel, "lacunas": lacunas, "historico": listar_historico()},
+        "cobertura_por_recorte": cobertura_por_recorte,
+        "score_perfil": score_perfil,
     }
 
 
@@ -724,7 +774,7 @@ def cmd_gerar_html(args) -> None:
     (DOCS_DIR / "index.html").write_text(
         html_mod.gerar_html(payload_publico, "Radar de Vagas — Painel público"), encoding="utf-8"
     )
-    print(f"Gerado: docs/index.html ({len(vagas)} vaga(s) públicas).")
+    print(f"Generated: docs/index.html ({len(vagas)} public job(s)).")
 
     payload_privado = montar_payload_privado(vagas)
     PRIVADO_DIR.mkdir(parents=True, exist_ok=True)
@@ -732,22 +782,22 @@ def cmd_gerar_html(args) -> None:
         html_mod.gerar_html(payload_privado, "Radar de Vagas — Painel privado"), encoding="utf-8"
     )
     cv_utilizavel = payload_privado["meu_cv"]["cv_utilizavel"]
-    print(f"Gerado: privado/index.html ({len(payload_privado['vagas'])} vaga(s), CV utilizável: {cv_utilizavel}).")
+    print(f"Generated: privado/index.html ({len(payload_privado['vagas'])} job(s), usable CV: {cv_utilizavel}).")
 
 
 def cmd_ia(args) -> None:
     caminho_cv = cv_mod.encontrar_cv_mais_recente(CV_DIR)
     if caminho_cv is None:
-        print(f"Nenhum CV encontrado em {CV_DIR} (coloque um .pdf/.docx/.txt/.md ali).")
+        print(f"No CV found in {CV_DIR} (put a .pdf/.docx/.txt/.md there).")
         return
-    print(f"CV utilizado: {caminho_cv}")
+    print(f"CV used: {caminho_cv}")
     try:
         texto_cv = cv_mod.extrair_texto(caminho_cv)
     except RuntimeError as exc:
         print(str(exc))
         return
     if not cv_mod.cv_e_utilizavel(texto_cv):
-        print("CV muito curto (possível PDF em imagem) — não dá para gerar sugestões.")
+        print("CV too short (possibly a scanned/image PDF) — cannot generate suggestions.")
         return
 
     config = carregar_config()
@@ -772,18 +822,40 @@ def cmd_ia(args) -> None:
         f"{sugestao}\n"
     )
     (PRIVADO_DIR / "sugestoes-cv.md").write_text(conteudo, encoding="utf-8")
-    print("Sugestões gravadas em privado/sugestoes-cv.md")
+    print("Suggestions saved to privado/sugestoes-cv.md")
+
+
+def cmd_import_linkedin(args) -> None:
+    caminho = Path(args.pdf)
+    if not caminho.exists():
+        print(f"File not found: {caminho}")
+        return
+    from radar import linkedin_import
+
+    try:
+        perfil_profissional = linkedin_import.importar_pdf_perfil(caminho)
+    except RuntimeError as exc:
+        print(str(exc))
+        return
+    salvar_perfil_profissional(perfil_profissional)
+    n_exp = len(perfil_profissional.get("experiencias") or [])
+    n_skills = len(perfil_profissional.get("skills_linkedin") or [])
+    print(
+        f"Imported LinkedIn profile for '{perfil_profissional.get('nome')}': "
+        f"{n_exp} experience(s), {n_skills} self-reported skill(s). Saved to the database."
+    )
+    print("See it at: python run.py serve -> /perfil-profissional")
 
 
 def cmd_servir(args) -> None:
     try:
         from radar import web as web_mod
     except ImportError as exc:
-        print(f"A interface web precisa do Flask: pip install flask\n(erro original: {exc})")
+        print(f"The web interface requires Flask: pip install flask\n(original error: {exc})")
         return
     app = web_mod.criar_app()
-    print(f"Servindo em http://127.0.0.1:{args.porta} — Ctrl+C para parar.")
-    app.run(host="127.0.0.1", port=args.porta, debug=False)
+    print(f"Serving at http://127.0.0.1:{args.port} — Ctrl+C to stop.")
+    app.run(host="127.0.0.1", port=args.port, debug=False)
 
 
 def _obter_clipboard() -> str | None:
@@ -815,14 +887,14 @@ def _obter_clipboard() -> str | None:
 def cmd_colar(args) -> None:
     texto = _obter_clipboard()
     if not texto:
-        print("Não foi possível ler a área de transferência (tkinter/powershell indisponíveis ou vazios).")
-        print("Cole o texto manualmente em um .txt dentro de vagas/inbox/ e rode 'python run.py processar'.")
+        print("Could not read the clipboard (tkinter/powershell unavailable or empty).")
+        print("Paste the text manually into a .txt file inside vagas/inbox/ and run 'python run.py process'.")
         return
     INBOX_DIR.mkdir(parents=True, exist_ok=True)
     nome = f"colado-{datetime.now().strftime('%Y%m%d-%H%M%S')}.txt"
     destino = INBOX_DIR / nome
     destino.write_text(texto, encoding="utf-8")
-    print(f"Salvo em {destino}. Processando...")
+    print(f"Saved to {destino}. Processing...")
     cmd_processar(args)
 
 
@@ -837,75 +909,82 @@ def main() -> None:
 
     ap = argparse.ArgumentParser(
         prog="run.py",
-        description="Radar de Vagas: acompanha vagas de Red Team / Pentest / Segurança Ofensiva do mercado privado.",
+        description="Radar de Vagas: tracks Red Team / Pentest / Offensive Security jobs in the private market.",
     )
     ap.add_argument(
-        "--ia", action="store_true",
-        help="Gera privado/sugestoes-cv.md via IA (opcional; requer ANTHROPIC_API_KEY+ANTHROPIC_MODEL ou OLLAMA_URL/OLLAMA_MODEL).",
+        "--ai", action="store_true",
+        help="Generates privado/sugestoes-cv.md via AI (optional; requires ANTHROPIC_API_KEY+ANTHROPIC_MODEL or OLLAMA_URL/OLLAMA_MODEL).",
     )
     sub = ap.add_subparsers(dest="comando")
 
-    sub.add_parser("processar", help="Processa os .txt da inbox e grava no banco (padrão sem subcomando).")
-    sub.add_parser("colar", help="Lê a área de transferência, salva na inbox e processa.")
+    sub.add_parser("process", help="Processes the .txt files in the inbox and saves to the database (default with no subcommand).")
+    sub.add_parser("paste", help="Reads the clipboard, saves it to the inbox, and processes it.")
 
-    p_dividir = sub.add_parser("dividir", help="Divide um .txt com várias vagas em arquivos separados na inbox.")
-    p_dividir.add_argument("arquivo")
+    p_dividir = sub.add_parser("split", help="Splits a .txt with several jobs into separate files in the inbox.")
+    p_dividir.add_argument("file")
     p_dividir.add_argument("--dry-run", action="store_true")
 
-    sub.add_parser("reprocessar", help="Reprocessa todas as vagas a partir do texto bruto, preservando status/notas.")
+    sub.add_parser("reprocess", help="Reprocesses all jobs from the raw text, preserving status/notes.")
 
-    p_status = sub.add_parser("status", help="Atualiza o status de uma vaga.")
+    p_status = sub.add_parser("status", help="Updates the status of a job.")
     p_status.add_argument("id")
-    p_status.add_argument("novo_status", choices=STATUS_VALIDOS)
-    p_status.add_argument("--nota")
+    p_status.add_argument("new_status", choices=STATUS_VALIDOS)
+    p_status.add_argument("--note")
 
-    p_termos = sub.add_parser("termos", help="Lista termos/bigramas frequentes fora da taxonomia.")
+    p_termos = sub.add_parser("terms", help="Lists frequent terms/bigrams outside the taxonomy.")
     p_termos.add_argument("--top", type=int, default=30)
 
-    sub.add_parser("exportar", help="Exporta data/vagas.csv (utf-8-sig), sem contatos nem texto bruto.")
+    sub.add_parser("export", help="Exports data/vagas.csv (utf-8-sig), without contacts or raw text.")
 
     p_analisar = sub.add_parser(
-        "analisar",
-        help="Lê o CV, calcula elegibilidade/cobertura/lacunas no banco e gera privado/relatorio-cv.md.",
+        "analyze",
+        help="Reads the CV, calculates eligibility/coverage/gaps in the database, and generates privado/relatorio-cv.md.",
     )
-    p_analisar.add_argument("--cv", help="Caminho de um CV específico (padrão: o mais recente em cv/).")
+    p_analisar.add_argument("--cv", help="Path to a specific CV (default: the most recent one in cv/).")
 
     p_coletar = sub.add_parser(
-        "coletar",
-        help="Coleta vagas via APIs públicas (Greenhouse/Lever/Ashby/SmartRecruiters) configuradas em data/fontes.json.",
+        "collect",
+        help="Collects jobs via public APIs (Greenhouse/Lever/Ashby/SmartRecruiters) configured in data/fontes.json.",
     )
-    p_coletar.add_argument("--dry-run", action="store_true", help="Não grava nada; só mostra o que seria feito.")
+    p_coletar.add_argument("--dry-run", action="store_true", help="Writes nothing; just shows what would be done.")
 
     sub.add_parser(
-        "gerar-html",
-        help="Gera um snapshot estático docs/index.html + privado/index.html (para publicar no GitHub Pages).",
+        "generate-html",
+        help="Generates a static snapshot docs/index.html + privado/index.html (to publish on GitHub Pages).",
     )
 
     p_servir = sub.add_parser(
-        "servir",
-        help="Inicia a app web local (Flask) para ver os painéis e editar vagas/perfil/status no navegador.",
+        "serve",
+        help="Starts the local web app (Flask) to view the dashboards and edit jobs/profile/status in the browser.",
     )
-    p_servir.add_argument("--porta", type=int, default=8000)
+    p_servir.add_argument("--port", type=int, default=8000)
+
+    p_linkedin = sub.add_parser(
+        "import-linkedin",
+        help="Imports your LinkedIn profile from a 'Save to PDF' export into the professional profile dashboard.",
+    )
+    p_linkedin.add_argument("pdf", help="Path to the LinkedIn profile PDF (download it from your own profile page).")
 
     args = ap.parse_args()
 
-    if args.ia:
+    if args.ai:
         cmd_ia(args)
         return
 
     comandos = {
         None: cmd_processar,
-        "processar": cmd_processar,
-        "colar": cmd_colar,
-        "dividir": cmd_dividir,
-        "reprocessar": cmd_reprocessar,
+        "process": cmd_processar,
+        "paste": cmd_colar,
+        "split": cmd_dividir,
+        "reprocess": cmd_reprocessar,
         "status": cmd_status,
-        "termos": cmd_termos,
-        "exportar": cmd_exportar,
-        "analisar": cmd_analisar,
-        "coletar": cmd_coletar,
-        "gerar-html": cmd_gerar_html,
-        "servir": cmd_servir,
+        "terms": cmd_termos,
+        "export": cmd_exportar,
+        "analyze": cmd_analisar,
+        "collect": cmd_coletar,
+        "generate-html": cmd_gerar_html,
+        "serve": cmd_servir,
+        "import-linkedin": cmd_import_linkedin,
     }
     comandos[args.comando](args)
 

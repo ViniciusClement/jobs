@@ -1,4 +1,5 @@
-"""Parser do contrato de dados da vaga (seções 6, 7, 8, 9, 10, 11 do prompt mestre)."""
+"""Parser do contrato de dados da vaga: cabeçalho, seções, campos, título,
+restrições, salário, datas, modalidade, elegibilidade de setor público."""
 
 from __future__ import annotations
 
