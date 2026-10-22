@@ -135,15 +135,15 @@ _TEMPLATE = r"""<!doctype html>
 body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
   margin:0;padding:0 16px 48px;line-height:1.45}
 h1,h2,h3{line-height:1.25}
-header{position:sticky;top:0;z-index:10;background:var(--bg);padding:16px 0 10px;
-  border-bottom:1px solid var(--border);margin-bottom:4px}
+header{position:sticky;top:0;z-index:10;background:var(--bg);padding:14px 0 0;margin-bottom:4px}
 header h1{margin:0 0 4px;font-size:1.3rem;font-weight:700;letter-spacing:-.01em}
-header p{margin:0;color:var(--muted);font-size:.85rem}
-.site-nav{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px}
+header p{margin:0 0 10px;color:var(--muted);font-size:.85rem}
+.site-nav{display:flex;gap:2px;flex-wrap:wrap;background:var(--chip-bg);border:1px solid var(--border);
+  border-radius:10px;padding:5px;margin-bottom:0}
 .site-nav a{color:var(--muted);text-decoration:none;font-size:.82rem;font-weight:600;
-  padding:4px 0;border-bottom:2px solid transparent}
-.site-nav a:hover{color:var(--accent)}
-.site-nav a.atual{color:var(--accent);border-bottom-color:var(--accent)}
+  padding:7px 14px;border-radius:7px;white-space:nowrap}
+.site-nav a:hover{color:var(--fg);background:var(--card)}
+.site-nav a.atual{color:#fff;background:var(--accent)}
 nav.abas{display:flex;gap:4px;margin:14px 0 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
 nav.abas button{background:none;border:none;color:var(--muted);padding:9px 16px;cursor:pointer;
   border-bottom:2px solid transparent;font-size:.88rem;font-weight:600;border-radius:6px 6px 0 0;
@@ -249,6 +249,8 @@ footer{margin-top:30px;color:var(--muted);font-size:.78rem}
   <nav class="site-nav" id="site-nav" hidden>
     <a href="/">Painel público</a>
     <a href="/privado">Painel privado</a>
+    <a href="/privado#vagas">Vagas</a>
+    <a href="/privado#meu-cv">Meu CV</a>
     <a href="/perfil-profissional">Meu perfil</a>
     <a href="/adicionar">+ Adicionar vaga</a>
     <a href="/perfil">Configurar perfil</a>
@@ -953,9 +955,19 @@ if (DADOS.app_viva){
   const siteNav = document.getElementById('site-nav');
   siteNav.hidden = false;
   const caminhoAtual = window.location.pathname;
+  const hashAtual = window.location.hash;
+  let melhorMatch = null;
   for (const a of siteNav.querySelectorAll('a')){
-    if (a.getAttribute('href') === caminhoAtual) a.classList.add('atual');
+    const url = new URL(a.getAttribute('href'), window.location.origin);
+    if (url.pathname !== caminhoAtual) continue;
+    // prefere o item cujo hash bate exatamente; sem hash, cai no item "base" da página (ex.: Painel público/privado).
+    if (url.hash === hashAtual) { melhorMatch = a; break; }
+    if (!url.hash && !melhorMatch) melhorMatch = a;
   }
+  if (melhorMatch) melhorMatch.classList.add('atual');
+
+  if (hashAtual === '#vagas' && document.getElementById('pagina-vagas')) trocarAba('vagas');
+  else if (hashAtual === '#meu-cv' && document.getElementById('pagina-meu-cv')) trocarAba('meu-cv');
 }
 
 montarSeletorRecorte();

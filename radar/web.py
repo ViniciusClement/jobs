@@ -51,6 +51,8 @@ def _layout(titulo: str, corpo: str) -> str:
   <nav>
     <a href="{url_for('painel_publico')}">Painel público</a>
     <a href="{url_for('painel_privado')}">Painel privado</a>
+    <a href="{url_for('painel_privado')}#vagas">Vagas</a>
+    <a href="{url_for('painel_privado')}#meu-cv">Meu CV</a>
     <a href="{url_for('perfil_profissional')}">Meu perfil</a>
     <a href="{url_for('pagina_adicionar')}">+ Adicionar vaga</a>
     <a href="{url_for('pagina_perfil')}">Configurar perfil</a>
