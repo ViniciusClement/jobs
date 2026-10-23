@@ -214,6 +214,139 @@ class TestWebApp(unittest.TestCase):
         self.assertNotIn('"><script', corpo.lower())
         self.assertIn("&quot;&gt;&lt;script&gt;", corpo.lower())
 
+    # ------------------------------------------------------------------
+    # Edição completa de vaga, pipeline e perfil profissional
+    # ------------------------------------------------------------------
+
+    def _vaga_completa(self):
+        return {
+            "id": "v-1", "chave_dedup": "k1", "titulo": "Pentester", "empresa": "ACME", "locais": ["Remoto"],
+            "status": "novo", "notas": "nota antiga", "ignorada": False, "familia_cargo": "pentest",
+            "salario": None, "anos_experiencia": None,
+            "restricoes": {"cidadania": None, "residencia": None, "clearance": None,
+                           "clearance_obrigatorio": None, "outras": []},
+            "skills": [
+                {"categoria": "Linguagens", "skill": "Python", "classe": "mencionado", "peso": 0.6,
+                 "grupo_alternativo": None, "evidencia": "Python"},
+                {"categoria": "Linguagens", "skill": "Go", "classe": "diferencial", "peso": 0.4,
+                 "grupo_alternativo": None, "evidencia": "Go"},
+            ],
+        }
+
+    def test_pagina_editar_vaga_mostra_todos_os_campos(self):
+        run_mod.salvar_vagas({"schema_version": 1, "vagas": [self._vaga_completa()]})
+        corpo = self.client.get("/privado/vaga/v-1/editar").data.decode("utf-8")
+        for nome in ("familia_cargo", "salario_min", "anos_min", "restricao_cidadania",
+                     "skill-0-classe", "nova-0-skill", 'name="status"', 'name="notas"'):
+            self.assertIn(nome, corpo)
+
+    def test_editar_vaga_salva_campos_extras_skills_e_status(self):
+        run_mod.salvar_vagas({"schema_version": 1, "vagas": [self._vaga_completa()]})
+        resposta = self.client.post("/privado/vaga/v-1/editar", data={
+            "titulo": "Pentester Sênior", "empresa": "ACME", "locais": "Remoto, Brasil",
+            "modalidade": "remoto", "senioridade": "sênior", "contrato": "CLT", "tipo_vinculo": "full_time",
+            "mercado": "INT", "familia_cargo": "red_team", "url": "",
+            "salario_min": "120000", "salario_max": "150.000", "salario_moeda": "USD", "salario_periodo": "ano",
+            "anos_min": "5", "anos_max": "",
+            "restricao_cidadania": "us, ca", "restricao_residencia": "", "restricao_clearance": "secret",
+            "restricao_clearance_obrigatorio": "on",
+            "skill-0-classe": "obrigatorio", "skill-1-classe": "diferencial", "skill-1-remover": "on",
+            "nova-0-skill": "kerberos", "nova-0-categoria": "", "nova-0-classe": "mencionado",
+            "status": "aplicado", "notas": "nova nota",
+        })
+        self.assertEqual(resposta.status_code, 302)
+        v = run_mod.obter_vaga("v-1")
+        self.assertEqual(v["titulo"], "Pentester Sênior")
+        self.assertEqual(v["locais"], ["Remoto", "Brasil"])
+        self.assertEqual(v["familia_cargo"], "red_team")
+        self.assertEqual(v["salario"]["min"], 120000)
+        self.assertEqual(v["salario"]["max"], 150000)
+        self.assertEqual(v["salario"]["moeda"], "USD")
+        self.assertEqual(v["anos_experiencia"]["min"], 5)
+        self.assertEqual(v["restricoes"]["cidadania"], ["US", "CA"])
+        self.assertTrue(v["restricoes"]["clearance_obrigatorio"])
+        self.assertEqual(v["status"], "aplicado")
+        self.assertEqual(v["notas"], "nova nota")
+        nomes = {s["skill"]: s for s in v["skills"]}
+        self.assertNotIn("Go", nomes)
+        self.assertEqual(nomes["Python"]["classe"], "obrigatorio")
+        self.assertEqual(nomes["Python"]["peso"], 1.0)
+        # nome normalizado para o canônico da taxonomia, categoria inferida dela:
+        self.assertIn("Kerberos", nomes)
+        self.assertEqual(nomes["Kerberos"]["categoria"], "Active Directory")
+
+    def test_editar_vaga_rejeita_valores_fora_das_listas(self):
+        run_mod.salvar_vagas({"schema_version": 1, "vagas": [self._vaga_completa()]})
+        self.client.post("/privado/vaga/v-1/editar", data={
+            "titulo": "X", "modalidade": "<script>", "mercado": "XX", "status": "hackeado",
+            "skill-0-classe": "inventada",
+        })
+        v = run_mod.obter_vaga("v-1")
+        self.assertIsNone(v["modalidade"])
+        self.assertIsNone(v["mercado"])
+        self.assertEqual(v["status"], "novo")
+        self.assertEqual(v["skills"][0]["classe"], "mencionado")
+
+    def test_pagina_editar_vaga_escapa_titulo_malicioso(self):
+        vaga = self._vaga_completa()
+        vaga["titulo"] = '"><script>alert(1)</script>'
+        run_mod.salvar_vagas({"schema_version": 1, "vagas": [vaga]})
+        corpo = self.client.get("/privado/vaga/v-1/editar").data.decode("utf-8")
+        self.assertNotIn("<script>alert(1)</script>", corpo)
+
+    def test_mover_status_pelo_pipeline_preserva_notas(self):
+        run_mod.salvar_vagas({"schema_version": 1, "vagas": [self._vaga_completa()]})
+        resposta = self.client.post("/privado/vaga/v-1/status", data={"status": "entrevista"})
+        self.assertEqual(resposta.status_code, 302)
+        self.assertIn("#pipeline", resposta.headers["Location"])
+        v = run_mod.obter_vaga("v-1")
+        self.assertEqual(v["status"], "entrevista")
+        self.assertEqual(v["notas"], "nota antiga")
+        self.client.post("/privado/vaga/v-1/status", data={"status": "invalido"})
+        self.assertEqual(run_mod.obter_vaga("v-1")["status"], "entrevista")
+
+    def test_painel_privado_tem_aba_pipeline_e_publico_nao(self):
+        self.assertIn(b'id="aba-pipeline"', self.client.get("/privado").data)
+        self.assertNotIn(b'id="aba-pipeline"', self.client.get("/").data)
+
+    def test_editar_perfil_profissional(self):
+        run_mod.salvar_perfil_profissional({"nome": "Fulano", "experiencias": [
+            {"cargo": "Analista", "empresa": "A", "inicio": "2020", "fim": "2022", "duracao": "2 anos",
+             "localizacao": None, "descricao": None},
+            {"cargo": "Estagiário", "empresa": "B", "inicio": "2019", "fim": "2020", "duracao": None,
+             "localizacao": None, "descricao": None},
+        ]})
+        corpo = self.client.get("/perfil-profissional/editar").data.decode("utf-8")
+        self.assertIn('name="exp-0-cargo"', corpo)
+        resposta = self.client.post("/perfil-profissional/editar", data={
+            "nome": "Fulano de Tal", "headline": "Pentester", "localizacao": "SP", "resumo": "Resumo.",
+            "exp-0-cargo": "Analista Sr", "exp-0-empresa": "A", "exp-0-inicio": "2020", "exp-0-fim": "2022",
+            "exp-1-cargo": "Estagiário", "exp-1-remover": "on",
+            "exp-2-cargo": "Pentester", "exp-2-empresa": "C", "exp-2-inicio": "2023",
+            "edu-0-detalhe": "Ciência da Computação", "edu-0-periodo": "2015 – 2019",
+            "certificacoes": "OSCP\neJPT\nOSCP", "skills_linkedin": "Burp Suite, Python\nNmap",
+            "idiomas": "Inglês — Avançado\nPortuguês",
+        })
+        self.assertEqual(resposta.status_code, 302)
+        p = run_mod.obter_perfil_profissional()
+        self.assertEqual(p["nome"], "Fulano de Tal")
+        self.assertEqual([e["cargo"] for e in p["experiencias"]], ["Analista Sr", "Pentester"])
+        self.assertEqual(p["experiencias"][0]["duracao"], "2 anos")  # campo não editável preservado
+        self.assertEqual(p["certificacoes"], ["OSCP", "eJPT"])
+        self.assertEqual(p["skills_linkedin"], ["Burp Suite", "Python", "Nmap"])
+        self.assertEqual(p["idiomas"][0], {"idioma": "Inglês", "nivel": "Avançado"})
+        self.assertEqual(p["idiomas"][1], {"idioma": "Português", "nivel": None})
+        self.assertEqual(self.client.get("/perfil-profissional?salvo=1").status_code, 200)
+
+    def test_perfil_profissional_com_valor_malicioso_nao_gera_xss(self):
+        self.client.post("/perfil-profissional/editar", data={
+            "nome": '"><script>alert(1)</script>', "resumo": "<img src=x onerror=alert(1)>",
+        })
+        for rota in ("/perfil-profissional", "/perfil-profissional/editar"):
+            corpo = self.client.get(rota).data.decode("utf-8")
+            self.assertNotIn("<script>alert(1)</script>", corpo)
+            self.assertNotIn("<img src=x", corpo)
+
 
 if __name__ == "__main__":
     unittest.main()

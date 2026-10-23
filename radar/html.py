@@ -5,8 +5,11 @@ client-side, quais seções a página mostra."""
 
 from __future__ import annotations
 
+import html as html_lib
 import json
 import re
+
+from radar import estilo
 
 _RE_EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 _RE_TELEFONE = re.compile(r"\(?\d{2,3}\)?[\s.-]\d{3,5}[\s.-]\d{4}")
@@ -54,6 +57,20 @@ def _recorte_int(vaga: dict, perfil: dict) -> str | None:
     return "acessivel"
 
 
+def _salario_payload(salario: dict | None) -> dict | None:
+    if not isinstance(salario, dict):
+        return None
+    if salario.get("min") is None and salario.get("max") is None:
+        return None
+    return {k: salario.get(k) for k in ("min", "max", "moeda", "periodo")}
+
+
+def _anos_payload(anos: dict | None) -> dict | None:
+    if not isinstance(anos, dict):
+        return None
+    return {k: anos.get(k) for k in ("min", "max")}
+
+
 def montar_vaga_payload(
     vaga: dict, privado: bool, perfil: dict,
     skills_cv: set[tuple[str, str]] | None = None,
@@ -88,6 +105,11 @@ def montar_vaga_payload(
         "familia_cargo": vaga.get("familia_cargo") or "outro",
         "data": vaga.get("data"),
         "data_estimada": bool(vaga.get("data_estimada")),
+        # salário e anos de experiência vêm do próprio anúncio (já públicos) —
+        # o gráfico de faixas salariais do painel lia v.salario, que nunca
+        # chegava ao payload.
+        "salario": _salario_payload(vaga.get("salario")),
+        "anos_experiencia": _anos_payload(vaga.get("anos_experiencia")),
         "possivelmente_expirada": bool(vaga.get("possivelmente_expirada")),
         "url": vaga.get("url"),
         "restricoes_chips": _chips_restricao(vaga.get("restricoes")),
@@ -119,180 +141,145 @@ _TEMPLATE = r"""<!doctype html>
 <title>__TITULO__</title>
 <link rel="icon" href="data:,">
 <style>
-:root{
-  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
-  --bg:#f7f7f5; --fg:#15180f; --card:#ffffff; --border:#e2e5de; --muted:#6b7268;
-  --accent:#1f8a5c; --accent-bg:#e7f3ec; --chip-bg:#eef0ea; --green:#1f8a5c; --green-bg:#e7f3ec;
-  --red:#c6394f; --red-bg:#fbeced; --bar-bg:#e7eae1;
-}
-@media (prefers-color-scheme: dark){
-  :root{
-    --bg:#0a0c0a; --fg:#e6ebe4; --card:#121412; --border:#232923; --muted:#8a9388;
-    --accent:#39d98a; --accent-bg:#102018; --chip-bg:#1a1d18; --green:#39d98a; --green-bg:#102018;
-    --red:#ff6b7a; --red-bg:#2a1418; --bar-bg:#1b1f1b;
-  }
-}
-*{box-sizing:border-box}
-body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-  margin:0;padding:0 16px 48px;line-height:1.5}
-h1,h2,h3{line-height:1.25}
-header{position:sticky;top:0;z-index:10;background:var(--bg);padding:18px 0 0;margin-bottom:4px}
-header h1{margin:0 0 6px;font-size:1.3rem;font-weight:700;letter-spacing:-.01em}
-header h1::before{content:'> ';color:var(--accent);font-family:var(--mono)}
-header p{margin:0 0 14px;color:var(--muted);font-size:.82rem;font-family:var(--mono)}
-.site-nav{display:flex;gap:2px;flex-wrap:wrap;background:transparent;border:0;border-bottom:1px solid var(--border);
-  padding:0 0 10px;margin-bottom:4px;font-family:var(--mono)}
-.site-nav a{color:var(--muted);text-decoration:none;font-size:.76rem;font-weight:600;letter-spacing:.02em;
-  padding:7px 12px;border-radius:5px;white-space:nowrap;text-transform:uppercase}
-.site-nav a:hover{color:var(--fg);background:var(--chip-bg)}
-.site-nav a.atual{color:var(--accent);background:var(--accent-bg)}
-nav.abas{display:flex;gap:4px;margin:14px 0 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
-nav.abas button{background:none;border:none;color:var(--muted);padding:9px 16px;cursor:pointer;
-  border-bottom:2px solid transparent;font-size:.84rem;font-weight:600;font-family:var(--mono);
-  letter-spacing:.02em;text-transform:uppercase;border-radius:6px 6px 0 0;transition:color .15s,background .15s}
-nav.abas button:hover{color:var(--fg);background:var(--chip-bg)}
-nav.abas button.ativa{border-bottom-color:var(--accent);color:var(--accent)}
+__ESTILO_BASE__
 section.pagina{display:none}
-section.pagina.ativa{display:block}
-.grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:14px 0;counter-reset:secao}
-.painel-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
-.painel-card h3{margin:0 0 10px;font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;
-  font-family:var(--mono)}
-.painel-card h3::before{counter-increment:secao;content:counter(secao,decimal-leading-zero) " / ";color:var(--accent)}
-.totais{display:flex;gap:18px;flex-wrap:wrap}
-.totais .num{font-size:1.6rem;font-weight:700}
-.totais .rotulo{font-size:.8rem;color:var(--muted)}
-.barra-linha{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:.85rem}
-.barra-linha .nome{flex:0 0 150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.barra-linha .trilha{flex:1;background:var(--bar-bg);border-radius:4px;height:10px;overflow:hidden}
-.barra-linha .preenchimento{background:var(--accent);height:100%}
-.barra-linha .valor{flex:0 0 42px;text-align:right;color:var(--muted)}
-select,input[type="search"]{background:var(--card);color:var(--fg);border:1px solid var(--border);
-  border-radius:6px;padding:6px 8px;font-size:.9rem}
-.filtros{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;align-items:center}
-.filtros label{font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;gap:2px}
-.recortes{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
-.recortes button{border:1px solid var(--border);background:var(--card);color:var(--fg);
-  border-radius:20px;padding:6px 14px;cursor:pointer;font-size:.78rem;font-family:var(--mono);
-  text-transform:uppercase;letter-spacing:.02em}
-.recortes button.ativo{background:var(--accent);color:#fff;border-color:var(--accent)}
-.lista-vagas{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-top:12px}
-.vaga{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:.88rem;
-  transition:box-shadow .15s,border-color .15s}
-.vaga:hover{box-shadow:0 2px 10px rgba(0,0,0,.06);border-color:var(--accent)}
-.vaga h4{margin:0 0 4px;font-size:1rem}
-.vaga .empresa{color:var(--muted);margin:0 0 8px}
-.linha-meta{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
-.selo{background:var(--chip-bg);border-radius:999px;padding:3px 10px;font-size:.72rem;color:var(--fg)}
-.selo.alerta{background:var(--red-bg);color:var(--red)}
-.selo.match{background:var(--accent-bg);color:var(--accent);font-weight:700}
-.chip{background:var(--chip-bg);border-radius:999px;padding:3px 10px;font-size:.74rem;cursor:default;
-  transition:transform .1s}
-.chip:hover{transform:translateY(-1px)}
-.chip.cv-sim{background:var(--green-bg);color:var(--green)}
-.chip.cv-nao{background:var(--red-bg);color:var(--red)}
-.grupo-chips{border:1px dashed var(--border);border-radius:999px;padding:5px 10px;display:flex;gap:5px;
-  flex-wrap:wrap;align-items:center}
-.grupo-chips .rotulo-grupo{font-size:.68rem;color:var(--muted)}
-.chips-skills{display:flex;gap:5px;flex-wrap:wrap;margin:8px 0}
-.chips-restricao{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0}
-.chip-restricao{background:var(--red-bg);color:var(--red);border-radius:999px;padding:3px 10px;font-size:.72rem}
-details{margin:4px 0}
-details summary{cursor:pointer;font-size:.82rem;color:var(--accent)}
-details p{white-space:pre-wrap;margin:6px 0 10px;font-size:.84rem}
-a.link-vaga{color:var(--accent);font-size:.85rem;font-weight:600}
-.elegivel-sim{color:var(--green)}
-.elegivel-nao{color:var(--red)}
-.elegivel-talvez{color:#e8a33d}
-table{border-collapse:collapse;width:100%;font-size:.84rem}
-table th{position:sticky;top:0;background:var(--card);border-bottom:2px solid var(--border);
-  padding:7px 8px;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.02em;
-  color:var(--muted);cursor:default;font-family:var(--mono)}
-table th.ordenavel{cursor:pointer}
-table th.ordenavel:hover{color:var(--accent)}
-table td{border-bottom:1px solid var(--border);padding:7px 8px;text-align:left}
-table.tabela-vagas tbody tr:hover{background:var(--chip-bg)}
-table.tabela-vagas tbody tr:nth-child(even){background:color-mix(in srgb, var(--chip-bg) 45%, transparent)}
-.muted{color:var(--muted)}
-.vazio{color:var(--muted);font-style:italic;padding:12px 0}
-.barrinha-status{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted);margin-top:6px}
-.notas-caixa{background:var(--chip-bg);border-radius:6px;padding:6px 8px;font-size:.78rem;margin-top:6px}
-.form-status{margin-top:10px;display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--border);padding-top:8px}
-.form-status select,.form-status textarea{background:var(--bg);color:var(--fg);border:1px solid var(--border);
-  border-radius:6px;padding:5px 7px;font-size:.78rem;font-family:inherit;width:100%}
-.form-status textarea{resize:vertical;min-height:40px}
-.form-status button{align-self:flex-start;background:var(--accent);color:#fff;border:none;border-radius:6px;
-  padding:5px 12px;font-size:.78rem;cursor:pointer}
-.alternador-visualizacao{display:flex;gap:4px;margin:10px 0}
-.alternador-visualizacao button{border:1px solid var(--border);background:var(--card);color:var(--muted);
-  border-radius:6px;padding:5px 12px;font-size:.8rem;cursor:pointer}
-.alternador-visualizacao button.ativo{background:var(--accent);color:#fff;border-color:var(--accent)}
-.kpis-executivos{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:16px 0}
-.kpi-tile{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;
-  position:relative;overflow:hidden}
-.kpi-tile.destaque{border-color:var(--accent)}
-.kpi-tile .kpi-rotulo{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;
-  font-family:var(--mono)}
-.kpi-tile .kpi-rotulo::before{content:'// ';opacity:.55}
-.kpi-tile .kpi-valor{font-size:2rem;font-weight:800;margin:4px 0 2px;line-height:1;font-family:var(--mono)}
-.kpi-tile .kpi-nota{font-size:.76rem;color:var(--muted)}
-.kpi-tile a{color:inherit;text-decoration:none;display:block}
-.kpi-tile a:hover .kpi-valor{color:var(--accent)}
+section.pagina.ativa{display:flex;flex-direction:column;gap:22px}
+.filtros{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:12px;padding:16px;
+  border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+.filtros label{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted);min-width:0}
+.filtros .busca{grid-column:span 2}
+@media (max-width:520px){.filtros .busca{grid-column:auto}}
+.filtros .check{color:var(--fg);align-self:end}
+.barra-ferramentas{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px}
+.lista-vagas{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:16px}
+.vaga{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;
+  display:flex;flex-direction:column;gap:12px;min-width:0}
+.vaga:hover{border-color:var(--border-strong)}
+.vaga-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.vaga h3{font-size:16px;font-weight:600}
+.vaga .empresa{margin:4px 0 0;font-size:13.5px;color:var(--fg-2)}
+.match{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;width:68px;padding:8px 0;border-radius:10px;
+  background:var(--surface-2);border:1px solid var(--border)}
+.match strong{font-family:var(--mono);font-size:20px;font-weight:500}
+.match small{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.match.alto strong{color:var(--accent)} .match.medio strong{color:var(--warn)} .match.baixo strong{color:var(--danger)}
+.linha-estado{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.motivo{font-size:13px;color:var(--muted);margin:0}
+details{border-top:1px solid var(--border);padding-top:8px}
+details summary{cursor:pointer;font-size:13.5px;color:var(--fg-2);min-height:28px}
+details p{white-space:pre-wrap;margin:6px 0 4px;font-size:13.5px;color:var(--fg-2)}
+.vaga-acoes{display:flex;flex-wrap:wrap;gap:8px;padding-top:4px}
+.form-status{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding-top:12px;border-top:1px solid var(--border)}
+.form-status textarea{grid-column:1/-1;min-height:60px}
+.notas-caixa{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px}
+.tabela-caixa{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 14px;text-align:left;font-family:var(--mono);
+  font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+th.ordenavel{cursor:pointer} th.ordenavel:hover{color:var(--fg)}
+td{border-bottom:1px solid var(--border);padding:12px 14px;text-align:left;vertical-align:middle}
+tbody tr:hover{background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+.td-titulo strong{display:block;font-weight:500}
+.td-titulo span{font-size:12.5px;color:var(--muted)}
+.mini-match{display:flex;align-items:center;gap:8px;min-width:120px}
+.mini-match .trilha{flex:1;height:6px}
+.mini-match span{font-family:var(--mono);font-size:12.5px;min-width:36px;text-align:right}
+.comparacao{display:flex;flex-direction:column;gap:14px}
+.comparacao .linha{display:flex;flex-direction:column;gap:5px}
+.comparacao .topo{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.comparacao .topo span:last-child{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.comparacao .trilha{height:6px}
+.familias{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}
+.familia{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border)}
+.familia .topo{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.familia strong{font-size:14px}
+.familia .n{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.salario{display:flex;flex-direction:column;gap:6px}
+.salario .topo{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.salario .topo span:last-child{font-family:var(--mono);font-size:12.5px;color:var(--fg-2)}
+.salario .marca-mediana{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--fg);border-radius:1px}
+.salario .trilha{overflow:visible}
+.kanban-caixa{overflow-x:auto;padding-bottom:8px}
+.kanban{display:grid;grid-template-columns:repeat(6,minmax(230px,1fr));gap:14px;min-width:1440px}
+.coluna{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:var(--radius);background:var(--surface-2);
+  border:1px solid var(--border);min-height:420px}
+.coluna-topo{display:flex;align-items:center;gap:8px;padding:2px 4px 10px;border-bottom:2px solid currentColor}
+.coluna-topo strong{font-size:14px;color:var(--fg);text-transform:capitalize}
+.coluna-topo span{margin-left:auto;font-family:var(--mono);font-size:13px;color:var(--muted)}
+.cartao{display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:10px;background:var(--surface);border:1px solid var(--border)}
+.cartao h3{font-size:14px;font-weight:600;line-height:1.3}
+.cartao .empresa{font-size:13px;color:var(--fg-2);margin:0}
+.cartao .topo{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.cartao .topo .m{font-family:var(--mono)}
+.cartao-acoes{display:flex;gap:6px}
+.cartao-acoes form{margin:0;display:flex}
+.cartao-acoes form:last-child{flex:1}
+.cartao-acoes form:last-child button{flex:1}
+.mais-cartoes{font-size:12.5px;color:var(--muted);text-align:center;padding:6px}
 .grafico-linha{width:100%;height:auto}
-.grafico-linha .eixo{stroke:var(--border);stroke-width:1}
+.grafico-linha .eixo{stroke:var(--border-strong);stroke-width:1}
 .grafico-linha .linha{fill:none;stroke:var(--accent);stroke-width:2.5}
 .grafico-linha .ponto{fill:var(--accent)}
-.grafico-linha text{fill:var(--muted);font-size:9px}
-footer{margin-top:30px;color:var(--muted);font-size:.78rem}
-@media (max-width:480px){
-  .barra-linha .nome{flex-basis:100px}
-}
+.grafico-linha text{fill:var(--muted);font-size:10px;font-family:var(--mono)}
+.plano{display:flex;flex-direction:column;gap:10px}
+.plano-item{display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border)}
+.plano-item .topo{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.plano-item strong{font-size:14px}
+.prio{font-family:var(--mono);font-size:12px}
+.prio.alta{color:var(--danger-fg)} .prio.media{color:var(--warn-fg)} .prio.baixa{color:var(--muted)}
 </style>
 </head>
 <body>
-<header>
-  <h1>__TITULO__</h1>
-  <p id="subtitulo"></p>
-  <nav class="site-nav" id="site-nav" hidden>
-    <a href="/">Painel público</a>
-    <a href="/privado">Painel privado</a>
-    <a href="/privado#vagas">Vagas</a>
-    <a href="/privado#meu-cv">Meu CV</a>
-    <a href="/perfil-profissional">Meu perfil</a>
-    <a href="/adicionar">+ Adicionar vaga</a>
-    <a href="/perfil">Configurar perfil</a>
-  </nav>
-</header>
+<div class="app">
+__LATERAL__
+<main class="conteudo">
 
-<nav class="abas">
-  <button data-pagina="painel" class="ativa">Painel</button>
-  <button data-pagina="vagas">Vagas</button>
-  <button data-pagina="meu-cv" id="aba-meu-cv" hidden>Meu CV</button>
-</nav>
-
-<section class="pagina ativa" id="pagina-painel">
-  <div class="recortes" id="seletor-recorte"></div>
-  <div class="recortes" id="acoes-app-viva" hidden>
-    <form method="post" action="/acoes/coletar" style="margin:0"><button type="submit">↻ Coletar vagas novas</button></form>
-    <form method="post" action="/acoes/analisar" style="margin:0"><button type="submit">↻ Recalcular análise/CV</button></form>
-  </div>
-  <div class="kpis-executivos" id="kpis-executivos"></div>
+<section class="pagina ativa" id="pagina-painel" aria-labelledby="titulo-painel">
+  <header class="cabecalho-pagina">
+    <div class="titulos">
+      <div class="olho">~/painel</div>
+      <h1 id="titulo-painel">__TITULO__</h1>
+      <p id="subtitulo"></p>
+    </div>
+    <div class="acoes" id="acoes-app-viva" hidden>
+      <form method="post" action="/acoes/coletar"><button class="btn" type="submit">__ICONE_BAIXAR__Coletar vagas novas</button></form>
+      <form method="post" action="/acoes/analisar"><button class="btn" type="submit">__ICONE_RECARREGAR__Recalcular análise/CV</button></form>
+      <a class="btn btn-primario" href="/adicionar">__ICONE_MAIS__Adicionar vaga</a>
+    </div>
+  </header>
+  <div class="seg" id="seletor-recorte" role="group" aria-label="Recorte de mercado"></div>
+  <div class="kpis" id="kpis-executivos"></div>
   <div class="grade" id="grade-painel"></div>
   <div class="grade">
-    <div class="painel-card">
-      <h3>Comparação BR × Internacional</h3>
+    <div class="card">
+      <div class="card-topo">
+        <h2>BR × Internacional</h2>
+        <div class="legenda"><span><i style="background:var(--info)"></i>BR</span><span><i style="background:var(--neutral)"></i>INT</span></div>
+      </div>
+      <p class="sub">Skills com a maior diferença de frequência entre os dois mercados</p>
       <div id="comparacao-br-int"></div>
     </div>
-    <div class="painel-card">
-      <h3>Comparação por família de cargo</h3>
+    <div class="card">
+      <h2>Por família de cargo</h2>
       <div id="comparacao-familias"></div>
     </div>
   </div>
 </section>
 
-<section class="pagina" id="pagina-vagas">
+<section class="pagina" id="pagina-vagas" aria-labelledby="titulo-vagas">
+  <header class="cabecalho-pagina">
+    <div class="titulos">
+      <div class="olho">~/vagas</div>
+      <h1 id="titulo-vagas">Vagas</h1>
+      <p id="contador-vagas"></p>
+    </div>
+    <div class="acoes" id="acoes-vagas-app-viva" hidden>
+      <a class="btn btn-primario" href="/adicionar">__ICONE_MAIS__Adicionar vaga</a>
+    </div>
+  </header>
   <div class="filtros">
-    <label>Busca<input type="search" id="f-busca" placeholder="título ou empresa"></label>
+    <label class="busca">Busca<input type="search" id="f-busca" placeholder="título, empresa ou skill"></label>
     <label>Senioridade<select id="f-senioridade"><option value="">Todas</option></select></label>
     <label>Modalidade<select id="f-modalidade"><option value="">Todas</option></select></label>
     <label>Contrato<select id="f-contrato"><option value="">Todos</option></select></label>
@@ -306,44 +293,75 @@ footer{margin-top:30px;color:var(--muted);font-size:.78rem}
       <option value="residencia">Exige residência</option>
       <option value="clearance">Exige clearance</option>
     </select></label>
-    <label id="rotulo-so-elegiveis" hidden><input type="checkbox" id="f-so-elegiveis"> Só elegíveis</label>
+    <label id="rotulo-status" hidden>Status<select id="f-status"><option value="">Todos</option></select></label>
+    <label class="check" id="rotulo-so-elegiveis" hidden><input type="checkbox" id="f-so-elegiveis"> Só elegíveis</label>
   </div>
-  <div class="alternador-visualizacao">
-    <button data-vis="cards" class="ativo">Cards</button>
-    <button data-vis="tabela">Tabela</button>
+  <div class="barra-ferramentas">
+    <div class="seg alternador-visualizacao" role="group" aria-label="Visualização">
+      <button type="button" data-vis="cards" class="ativo" aria-pressed="true">Cards</button>
+      <button type="button" data-vis="tabela" aria-pressed="false">Tabela</button>
+    </div>
+    <label class="campo" style="flex-direction:row;align-items:center;gap:8px"><span>Ordenar</span>
+      <select id="f-ordem" style="width:auto">
+        <option value="data">Mais recentes</option>
+        <option value="match" id="opcao-ordem-match" hidden>Maior match</option>
+        <option value="titulo">Título (A–Z)</option>
+      </select>
+    </label>
   </div>
-  <p class="muted" id="contador-vagas"></p>
   <div class="lista-vagas" id="lista-vagas"></div>
   <div id="tabela-vagas-container" hidden></div>
 </section>
 
-<section class="pagina" id="pagina-meu-cv">
+<section class="pagina" id="pagina-pipeline" aria-labelledby="titulo-pipeline">
+  <header class="cabecalho-pagina">
+    <div class="titulos">
+      <div class="olho">~/pipeline</div>
+      <h1 id="titulo-pipeline">Pipeline de candidatura</h1>
+      <p id="resumo-pipeline"></p>
+    </div>
+  </header>
+  <div class="kanban-caixa"><div class="kanban" id="kanban"></div></div>
+</section>
+
+<section class="pagina" id="pagina-meu-cv" aria-labelledby="titulo-meu-cv">
+  <header class="cabecalho-pagina">
+    <div class="titulos">
+      <div class="olho">~/meu-cv</div>
+      <h1 id="titulo-meu-cv">Meu CV × mercado</h1>
+      <p>O que falta no seu currículo, priorizado pela frequência nas vagas</p>
+    </div>
+  </header>
   <div class="grade">
-    <div class="painel-card">
-      <h3>Lacunas priorizadas</h3>
+    <div class="card">
+      <div class="card-topo"><h2>Lacunas priorizadas</h2><div class="legenda"><span><i style="background:var(--warn)"></i>score de lacuna</span></div></div>
       <div id="cv-lacunas"></div>
     </div>
-    <div class="painel-card">
-      <h3>Plano de estudo</h3>
+    <div class="card">
+      <h2>Plano de estudo</h2>
       <div id="cv-plano"></div>
     </div>
-    <div class="painel-card">
-      <h3>Evolução da cobertura (recorte: todos)</h3>
-      <div id="cv-evolucao"></div>
-    </div>
+  </div>
+  <div class="card">
+    <h2>Evolução da cobertura <span class="muted" style="font-weight:400">· recorte todos</span></h2>
+    <div id="cv-evolucao"></div>
   </div>
 </section>
 
-<footer>Gerado em <span id="gerado-em"></span> — Radar de Vagas.</footer>
+<footer class="rodape">Gerado em <span id="gerado-em"></span> · Radar de Vagas</footer>
+</main>
+</div>
 
 <script type="application/json" id="dados-radar">__DADOS_JSON__</script>
 <script>
 const DADOS = JSON.parse(document.getElementById('dados-radar').textContent);
 const PESOS = {obrigatorio: 1.0, mencionado: 0.6, diferencial: 0.4};
+const ETAPAS = ['novo','interessado','aplicado','entrevista','oferta','recusado'];
+const STATUS_TODOS = ETAPAS.concat(['arquivada']);
 
 document.getElementById('subtitulo').textContent = DADOS.privado
-  ? 'Painel privado — inclui match com seu CV, elegibilidade, status e notas.'
-  : 'Painel público do mercado de Red Team / Pentest / Segurança Ofensiva.';
+  ? 'Painel privado — match com seu CV, elegibilidade, status e notas.'
+  : 'Mercado de Red Team, Pentest e Segurança Ofensiva.';
 document.getElementById('gerado-em').textContent = DADOS.gerado_em || '';
 
 let recorteAtual = 'todos';
@@ -356,13 +374,14 @@ function vagasDoRecorte(recorte){
 }
 
 function rankingSkills(vagas){
-  const soma = new Map(), vagasPorSkill = new Map();
+  const soma = new Map(), vagasPorSkill = new Map(), noCv = new Map();
   for (const v of vagas){
     for (const s of v.skills){
       const chave = s.categoria + '||' + s.skill;
       soma.set(chave, (soma.get(chave)||0) + s.peso);
       if (!vagasPorSkill.has(chave)) vagasPorSkill.set(chave, new Set());
       vagasPorSkill.get(chave).add(v.id);
+      if (s.no_cv) noCv.set(chave, true);
     }
   }
   const n = vagas.length;
@@ -370,7 +389,7 @@ function rankingSkills(vagas){
   for (const [chave, s] of soma){
     const [categoria, skill] = chave.split('||');
     const nVagas = vagasPorSkill.get(chave).size;
-    linhas.push({categoria, skill, nVagas, percentual: n ? nVagas/n : null, score: n ? s/n : null});
+    linhas.push({categoria, skill, nVagas, percentual: n ? nVagas/n : null, score: n ? s/n : null, noCv: !!noCv.get(chave)});
   }
   linhas.sort((a,b)=> (b.score||0) - (a.score||0));
   return linhas;
@@ -388,7 +407,8 @@ function rankingCategorias(vagas){
   const n = vagas.length;
   const linhas = [];
   for (const [categoria, s] of soma){
-    linhas.push({categoria, score: n ? s/n : null, nVagas: vagasPorCat.get(categoria).size});
+    const nVagas = vagasPorCat.get(categoria).size;
+    linhas.push({categoria, score: n ? s/n : null, nVagas, percentual: n ? nVagas/n : null});
   }
   linhas.sort((a,b)=> (b.score||0) - (a.score||0));
   return linhas;
@@ -414,7 +434,7 @@ function faixasSalariais(vagas){
     const valores = [min, max].filter(x => x !== null && x !== undefined);
     if (!valores.length) continue;
     const representativo = valores.reduce((a,b)=>a+b,0) / valores.length;
-    const chave = moeda + '||' + periodo;
+    const chave = (moeda || '?') + '||' + (periodo || '?');
     if (!grupos.has(chave)) grupos.set(chave, []);
     grupos.get(chave).push(representativo);
   }
@@ -427,76 +447,86 @@ function faixasSalariais(vagas){
       : ordenados[(ordenados.length-1)/2];
     linhas.push({moeda, periodo, n: ordenados.length, min: ordenados[0], mediana, max: ordenados[ordenados.length-1]});
   }
-  return linhas;
+  return linhas.sort((a,b)=> b.n - a.n);
 }
 
 function formatarPct(v){ return (v===null||v===undefined) ? 'n/d' : Math.round(v*100) + '%'; }
+function formatarNum(v){ return Math.round(v).toLocaleString('pt-BR'); }
 function el(tag, props={}, filhos=[]){
   const e = document.createElement(tag);
   for (const [k,v] of Object.entries(props)){
-    if (k === 'texto') e.textContent = v; else e.setAttribute(k, v);
+    if (v === null || v === undefined || v === false) continue;
+    if (k === 'texto') e.textContent = v; else e.setAttribute(k, v === true ? '' : v);
   }
-  for (const f of filhos) e.appendChild(f);
+  for (const f of filhos) if (f) e.appendChild(typeof f === 'string' ? document.createTextNode(f) : f);
   return e;
 }
+function trilha(pct, classe, extraEstilo){
+  const t = el('span', {class:'trilha'});
+  const f = el('span', {class:'fill ' + (classe||'')});
+  f.style.width = Math.max(0, Math.min(100, pct)) + '%';
+  if (extraEstilo) Object.assign(f.style, extraEstilo);
+  t.appendChild(f);
+  return t;
+}
+function card(titulo, sub){
+  const c = el('div', {class:'card'});
+  const topo = el('div', {class:'card-topo'}, [el('h2', {texto: titulo})]);
+  c.appendChild(topo);
+  if (sub) c.appendChild(el('p', {class:'sub', texto: sub}));
+  return c;
+}
+function classeMatch(m){ return m >= 0.7 ? 'alto' : (m >= 0.45 ? 'medio' : 'baixo'); }
+function pillStatus(status){ return el('span', {class:'pill', 'data-status': status, texto: status}); }
+const ROTULO_ELEG = {sim:'sim', nao:'não', talvez:'talvez'};
+function pillEleg(eleg){ return el('span', {class:'pill eleg-' + eleg, texto: 'elegível: ' + (ROTULO_ELEG[eleg] || eleg)}); }
 
-function renderBarras(container, linhas, rotuloFn, max){
+function renderBarras(container, linhas, rotuloFn, max, classeFn){
   container.innerHTML = '';
+  const lista = el('div', {class:'barras'});
   const maiorScore = Math.max(...linhas.slice(0,max).map(l=>l.score||0), 0.0001);
   for (const linha of linhas.slice(0, max)){
-    const div = el('div', {class:'barra-linha'});
-    div.appendChild(el('span', {class:'nome', texto: rotuloFn(linha)}));
-    const trilha = el('span', {class:'trilha'});
-    const preench = el('span', {class:'preenchimento'});
-    preench.style.width = Math.max(2, Math.round(((linha.score||0)/maiorScore)*100)) + '%';
-    trilha.appendChild(preench);
-    div.appendChild(trilha);
-    div.appendChild(el('span', {class:'valor', texto: linha.nVagas + ' (' + formatarPct(linha.percentual) + ')'}));
-    container.appendChild(div);
+    lista.appendChild(el('div', {class:'barra'}, [
+      el('span', {class:'nome', texto: rotuloFn(linha), title: rotuloFn(linha)}),
+      trilha(Math.max(2, Math.round(((linha.score||0)/maiorScore)*100)), classeFn ? classeFn(linha) : ''),
+      el('span', {class:'valor', texto: linha.nVagas + ' · ' + formatarPct(linha.percentual)}),
+    ]));
   }
+  container.appendChild(lista);
   if (!linhas.length) container.appendChild(el('p', {class:'vazio', texto:'Sem dados neste recorte.'}));
 }
+
+const ROTULO_RECORTE = {BR:'BR', INT_acessivel:'INT acessível', INT_restrito:'INT restrito', todos:'todos'};
 
 function renderKpis(vagas){
   const cont = document.getElementById('kpis-executivos');
   cont.innerHTML = '';
 
   function tile(rotulo, valor, nota, destaque, href){
-    const inner = [el('div', {class:'kpi-rotulo', texto: rotulo}), el('div', {class:'kpi-valor', texto: valor})];
-    if (nota) inner.push(el('div', {class:'kpi-nota', texto: nota}));
-    const tileEl = el('div', {class: 'kpi-tile' + (destaque ? ' destaque' : '')});
-    if (href){
-      const a = el('a', {href: href});
-      for (const n of inner) a.appendChild(n);
-      tileEl.appendChild(a);
-    } else {
-      for (const n of inner) tileEl.appendChild(n);
-    }
-    cont.appendChild(tileEl);
+    const filhos = [el('div', {class:'kpi-rotulo', texto: rotulo}), el('div', {class:'kpi-valor', texto: valor, title: valor})];
+    if (nota) filhos.push(el('div', {class:'kpi-nota', texto: nota}));
+    cont.appendChild(el(href ? 'a' : 'div', {class: 'kpi' + (destaque ? ' destaque' : ''), href: href || null}, filhos));
   }
 
-  tile('Vagas ativas (' + recorteAtual + ')', String(vagas.length), null, false);
+  tile('Vagas ativas', String(vagas.length), 'recorte: ' + ROTULO_RECORTE[recorteAtual], false);
 
-  const dist = distribuicao(vagas, 'modalidade');
-  const remoto = dist['remoto'];
-  tile('Modalidade remoto', remoto ? formatarPct(remoto.percentual) : 'n/d',
+  const remoto = distribuicao(vagas, 'modalidade').find(d => d.valor === 'remoto');
+  tile('Remoto', remoto ? formatarPct(remoto.percentual) : 'n/d',
     remoto ? remoto.n + ' de ' + vagas.length + ' vaga(s)' : 'sem dados', false);
 
   const ranking = rankingSkills(vagas);
-  tile('Skill #1 do mercado', ranking.length ? ranking[0].skill : '—',
+  tile('Skill #1', ranking.length ? ranking[0].skill : '—',
     ranking.length ? 'em ' + formatarPct(ranking[0].percentual) + ' das vagas' : 'sem dados', false);
 
   if (DADOS.privado){
     const coberturaAtual = (DADOS.cobertura_por_recorte || {})[recorteAtual];
-    tile('Cobertura do CV', formatarPct(coberturaAtual), 'recorte: ' + recorteAtual, true);
-
+    tile('Cobertura do CV', formatarPct(coberturaAtual), 'skills do mercado no seu CV', true);
     if (DADOS.score_perfil){
       tile('Score de perfil', DADOS.score_perfil.score + '/100',
-        DADOS.score_perfil.classificacao + ' (referência: 50+)', true, '/perfil-profissional');
+        DADOS.score_perfil.classificacao + ' · referência 50+', true, DADOS.app_viva ? '/perfil-profissional' : null);
     }
-
     const lacunasAltas = ((DADOS.meu_cv || {}).lacunas || []).filter(l => l.prioridade === 'alta').length;
-    tile('Lacunas de alta prioridade', String(lacunasAltas), 'veja a aba Meu CV', lacunasAltas > 0);
+    tile('Lacunas altas', String(lacunasAltas), 'veja Meu CV', lacunasAltas > 0, '#meu-cv');
   }
 }
 
@@ -506,74 +536,98 @@ function renderPainel(){
   grade.innerHTML = '';
   renderKpis(vagas);
 
-  const skillsCard = el('div', {class:'painel-card'});
-  skillsCard.appendChild(el('h3', {texto:'Top 15 skills'}));
+  const skillsCard = card('Top 15 skills', 'Peso ponderado: obrigatório > mencionado > diferencial');
+  if (DADOS.privado){
+    skillsCard.firstChild.appendChild(el('div', {class:'legenda'}, [
+      el('span', {}, [el('i', {style:'background:var(--accent)'}), 'no seu CV']),
+      el('span', {}, [el('i', {style:'background:var(--warn)'}), 'lacuna']),
+    ]));
+  }
   const divSkills = el('div'); skillsCard.appendChild(divSkills);
-  renderBarras(divSkills, rankingSkills(vagas), l => l.skill, 15);
+  renderBarras(divSkills, rankingSkills(vagas), l => l.skill, 15, DADOS.privado ? (l => l.noCv ? 'ok' : 'falta') : null);
   grade.appendChild(skillsCard);
 
-  const catCard = el('div', {class:'painel-card'});
-  catCard.appendChild(el('h3', {texto:'Categorias'}));
+  const catCard = card('Categorias');
   const divCat = el('div'); catCard.appendChild(divCat);
-  renderBarras(divCat, rankingCategorias(vagas), l => l.categoria, 10);
+  renderBarras(divCat, rankingCategorias(vagas), l => l.categoria, 10, () => 'info');
   grade.appendChild(catCard);
 
-  const perfilCard = el('div', {class:'painel-card'});
-  perfilCard.appendChild(el('h3', {texto:'Perfil das vagas'}));
-  for (const [campo, titulo] of [['senioridade','Senioridade'], ['modalidade','Modalidade'], ['tipo_vinculo','Vínculo'], ['familia_cargo','Família']]){
-    perfilCard.appendChild(el('p', {class:'muted', texto: titulo, style:'margin:10px 0 2px;font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;font-family:var(--mono)'}));
+  const salCard = card('Faixas salariais', 'Na moeda original do anúncio, sem conversão · traço = mediana');
+  const faixas = faixasSalariais(vagas);
+  const listaSal = el('div', {class:'barras'});
+  if (!faixas.length) listaSal.appendChild(el('p', {class:'vazio', texto:'Sem dados de salário neste recorte.'}));
+  for (const f of faixas){
+    const teto = f.max * 1.08 || 1;
+    const t = trilha(((f.max - f.min) / teto) * 100, 'ok', {left: (f.min / teto * 100) + '%'});
+    const marca = el('span', {class:'marca-mediana'}); marca.style.left = (f.mediana / teto * 100) + '%';
+    t.appendChild(marca);
+    listaSal.appendChild(el('div', {class:'salario'}, [
+      el('div', {class:'topo'}, [
+        el('span', {texto: f.moeda + ' · ' + f.periodo + ' (' + f.n + ')'}),
+        el('span', {texto: formatarNum(f.min) + ' – ' + formatarNum(f.max) + ' · med. ' + formatarNum(f.mediana)}),
+      ]),
+      t,
+    ]));
+  }
+  salCard.appendChild(listaSal);
+  grade.appendChild(salCard);
+
+  const perfilCard = card('Perfil das vagas');
+  for (const [campo, titulo] of [['senioridade','Senioridade'], ['modalidade','Modalidade'], ['tipo_vinculo','Vínculo']]){
+    const bloco = el('div', {class:'barras'});
+    bloco.appendChild(el('div', {class:'rotulo-secao', texto: titulo}));
     const dist = distribuicao(vagas, campo);
-    if (!dist.length) perfilCard.appendChild(el('p', {class:'vazio', texto:'Sem dados.'}));
-    for (const d of dist){
-      perfilCard.appendChild(el('div', {class:'barra-linha'}, [
-        el('span', {class:'nome', texto: d.valor}),
-        el('span', {class:'valor', texto: d.n + ' (' + formatarPct(d.percentual) + ')'}),
+    if (!dist.length) bloco.appendChild(el('p', {class:'vazio', texto:'Sem dados.'}));
+    for (const d of dist.slice(0, 6)){
+      bloco.appendChild(el('div', {class:'barra'}, [
+        el('span', {class:'nome', texto: d.valor}), trilha(d.percentual*100, 'neutro'),
+        el('span', {class:'valor', texto: d.n + ' · ' + formatarPct(d.percentual)}),
       ]));
     }
+    perfilCard.appendChild(bloco);
   }
   grade.appendChild(perfilCard);
-
-  const salCard = el('div', {class:'painel-card'});
-  salCard.appendChild(el('h3', {texto:'Faixas salariais (sem conversão de moeda)'}));
-  const faixas = faixasSalariais(vagas);
-  if (!faixas.length) salCard.appendChild(el('p', {class:'vazio', texto:'Sem dados de salário.'}));
-  for (const f of faixas){
-    salCard.appendChild(el('p', {texto: f.moeda + '/' + f.periodo + ' — N=' + f.n + ' · mín ' + Math.round(f.min) + ' · mediana ' + Math.round(f.mediana) + ' · máx ' + Math.round(f.max)}));
-  }
-  grade.appendChild(salCard);
 }
 
 function renderComparacaoBrInt(){
   const cont = document.getElementById('comparacao-br-int');
   cont.innerHTML = '';
-  const dados = (DADOS.comparacao_br_int || []).slice(0, 10);
+  const dados = (DADOS.comparacao_br_int || []).slice(0, 8);
   if (!dados.length){ cont.appendChild(el('p', {class:'vazio', texto:'Sem dados suficientes.'})); return; }
-  const tabela = el('table');
-  tabela.innerHTML = '<tr><th>Skill</th><th>BR</th><th>INT</th><th>Δ</th></tr>' + dados.map(d =>
-    '<tr><td>'+d.skill+'</td><td>'+formatarPct(d.br)+'</td><td>'+formatarPct(d.int)+'</td><td>'+formatarPct(d.diferenca)+'</td></tr>'
-  ).join('');
-  cont.appendChild(tabela);
+  const lista = el('div', {class:'comparacao'});
+  for (const d of dados){
+    lista.appendChild(el('div', {class:'linha'}, [
+      el('div', {class:'topo'}, [el('span', {texto: d.skill}), el('span', {texto: formatarPct(d.br) + ' · ' + formatarPct(d.int)})]),
+      trilha((d.br||0)*100, 'info'), trilha((d.int||0)*100, 'neutro'),
+    ]));
+  }
+  cont.appendChild(lista);
 }
 
 function renderComparacaoFamilias(){
   const cont = document.getElementById('comparacao-familias');
   cont.innerHTML = '';
   const familias = DADOS.comparacao_familias || {};
-  const chaves = Object.keys(familias);
+  const chaves = Object.keys(familias).sort((a,b)=> familias[b].n_vagas - familias[a].n_vagas);
   if (!chaves.length){ cont.appendChild(el('p', {class:'vazio', texto:'Sem dados.'})); return; }
+  const maior = Math.max(...chaves.map(k => familias[k].n_vagas), 1);
+  const grade = el('div', {class:'familias'});
   for (const familia of chaves){
     const info = familias[familia];
-    const top = (info.top_skills||[]).slice(0,5).map(s=>s.skill).join(', ') || '—';
-    cont.appendChild(el('p', {texto: familia + ' (' + info.n_vagas + ' vagas): ' + top}));
+    const chips = el('div', {class:'chips'});
+    for (const s of (info.top_skills||[]).slice(0,5)) chips.appendChild(el('span', {class:'chip', texto: s.skill}));
+    grade.appendChild(el('div', {class:'familia'}, [
+      el('div', {class:'topo'}, [el('strong', {texto: familia.replace(/_/g, ' ')}), el('span', {class:'n', texto: info.n_vagas + ' vaga(s)'})]),
+      trilha(info.n_vagas / maior * 100, 'ok'),
+      chips,
+    ]));
   }
+  cont.appendChild(grade);
 }
 
 function popularSelect(id, valores){
   const select = document.getElementById(id);
-  for (const v of valores){
-    const opt = el('option', {value: v, texto: v});
-    select.appendChild(opt);
-  }
+  for (const v of valores) select.appendChild(el('option', {value: v, texto: v}));
 }
 
 function construirListasDeFiltro(){
@@ -593,6 +647,7 @@ function construirListasDeFiltro(){
   popularSelect('f-vinculo', [...vinculos].sort());
   popularSelect('f-familia', [...familias].sort());
   popularSelect('f-skill', [...skills].sort());
+  if (DADOS.privado) popularSelect('f-status', STATUS_TODOS);
 }
 
 function tipoRestricao(v){
@@ -604,100 +659,102 @@ function tipoRestricao(v){
   return 'nenhuma';
 }
 
-function renderCardVaga(v){
-  const card = el('div', {class:'vaga'});
-  card.appendChild(el('h4', {texto: v.titulo || '(sem título)'}));
-  card.appendChild(el('p', {class:'empresa', texto: v.empresa || 'empresa não divulgada'}));
-
-  const meta = el('div', {class:'linha-meta'});
-  if (v.locais && v.locais.length) meta.appendChild(el('span', {class:'selo', texto: v.locais.join(', ')}));
-  if (v.modalidade) meta.appendChild(el('span', {class:'selo', texto: v.modalidade}));
-  if (v.senioridade) meta.appendChild(el('span', {class:'selo', texto: v.senioridade}));
-  if (v.contrato || v.tipo_vinculo) meta.appendChild(el('span', {class:'selo', texto: [v.contrato, v.tipo_vinculo].filter(Boolean).join(' / ')}));
-  if (v.data) meta.appendChild(el('span', {class:'selo', texto: v.data + (v.data_estimada ? ' (estimada)' : '')}));
-  if (v.possivelmente_expirada) meta.appendChild(el('span', {class:'selo alerta', texto:'possivelmente expirada'}));
-  if (v.modalidade_conflito) meta.appendChild(el('span', {class:'selo alerta', texto:'modalidade conflitante'}));
-  if (DADOS.privado && typeof v.match === 'number') meta.appendChild(el('span', {class:'selo match', texto:'match ' + formatarPct(v.match)}));
-  card.appendChild(meta);
-
-  if (v.restricoes_chips && v.restricoes_chips.length){
-    const chipsR = el('div', {class:'chips-restricao'});
-    for (const c of v.restricoes_chips) chipsR.appendChild(el('span', {class:'chip-restricao', texto: c}));
-    card.appendChild(chipsR);
-  }
-
-  if (DADOS.privado && v.elegivel){
-    const classe = 'elegivel-' + v.elegivel;
-    const p = el('p', {class: classe, texto: 'Elegibilidade: ' + v.elegivel});
-    if (v.elegivel_motivos && v.elegivel_motivos.length) p.title = v.elegivel_motivos.join('; ');
-    card.appendChild(p);
-  }
-
-  const chipsContainer = el('div', {class:'chips-skills'});
-  const semGrupo = v.skills.filter(s => !s.grupo_alternativo);
+function chipsDeSkills(v){
+  const chipsContainer = el('div', {class:'chips'});
   const grupos = new Map();
+  function chipDeSkill(s){
+    let classe = 'chip';
+    if (DADOS.privado) classe += s.no_cv ? ' cv-sim' : ' cv-nao';
+    return el('span', {class: classe, texto: s.skill, title: s.evidencia || null});
+  }
   for (const s of v.skills){
     if (s.grupo_alternativo){
       if (!grupos.has(s.grupo_alternativo)) grupos.set(s.grupo_alternativo, []);
       grupos.get(s.grupo_alternativo).push(s);
-    }
+    } else chipsContainer.appendChild(chipDeSkill(s));
   }
-  function chipDeSkill(s){
-    let classe = 'chip';
-    if (DADOS.privado) classe += s.no_cv ? ' cv-sim' : ' cv-nao';
-    const chip = el('span', {class: classe, texto: s.skill});
-    chip.title = s.evidencia || '';
-    return chip;
-  }
-  for (const s of semGrupo) chipsContainer.appendChild(chipDeSkill(s));
   for (const membros of grupos.values()){
-    const grupoDiv = el('span', {class:'grupo-chips'});
-    grupoDiv.appendChild(el('span', {class:'rotulo-grupo', texto:'um destes:'}));
+    const grupoDiv = el('span', {class:'grupo-chips'}, [el('span', {class:'rotulo-grupo', texto:'um destes:'})]);
     for (const m of membros) grupoDiv.appendChild(chipDeSkill(m));
     chipsContainer.appendChild(grupoDiv);
   }
-  card.appendChild(chipsContainer);
+  return chipsContainer;
+}
+
+function chipMeta(k, valor, classe){
+  return el('span', {class:'chip' + (classe ? ' ' + classe : '')}, [el('span', {class:'k', texto: k}), ' ' + valor]);
+}
+
+function formStatus(v){
+  const form = el('form', {class:'form-status', method:'post', action:'/privado/vaga/' + encodeURIComponent(v.id) + '/atualizar'});
+  const select = el('select', {name:'status', 'aria-label':'Status da candidatura'});
+  for (const opcao of STATUS_TODOS){
+    const opt = el('option', {value: opcao, texto: opcao});
+    if ((v.status || 'novo') === opcao) opt.selected = true;
+    select.appendChild(opt);
+  }
+  const textarea = el('textarea', {name:'nota', placeholder:'notas sobre esta vaga…', 'aria-label':'Notas'});
+  textarea.value = v.notas || '';
+  form.appendChild(select);
+  form.appendChild(el('button', {type:'submit', class:'btn btn-pequeno', texto:'Salvar'}));
+  form.appendChild(textarea);
+  return form;
+}
+
+function renderCardVaga(v){
+  const cardEl = el('article', {class:'vaga'});
+  const titulos = el('div', {style:'min-width:0'}, [
+    el('h3', {texto: v.titulo || '(sem título)'}),
+    el('p', {class:'empresa', texto: (v.empresa || 'empresa não divulgada') + (v.locais && v.locais.length ? ' · ' + v.locais.join(', ') : '')}),
+  ]);
+  const topo = el('div', {class:'vaga-topo'}, [titulos]);
+  if (DADOS.privado && typeof v.match === 'number'){
+    topo.appendChild(el('div', {class:'match ' + classeMatch(v.match)}, [el('strong', {texto: formatarPct(v.match)}), el('small', {texto:'match'})]));
+  }
+  cardEl.appendChild(topo);
+
+  const meta = el('div', {class:'chips'});
+  if (v.modalidade) meta.appendChild(chipMeta('modalidade', v.modalidade));
+  if (v.senioridade) meta.appendChild(chipMeta('nível', v.senioridade));
+  if (v.contrato || v.tipo_vinculo) meta.appendChild(chipMeta('contrato', [v.contrato, v.tipo_vinculo].filter(Boolean).join(' / ')));
+  if (v.familia_cargo && v.familia_cargo !== 'outro') meta.appendChild(chipMeta('família', v.familia_cargo.replace(/_/g,' ')));
+  if (v.salario) meta.appendChild(chipMeta('salário', (v.salario.moeda||'') + ' ' + [v.salario.min, v.salario.max].filter(x => x !== null && x !== undefined).map(formatarNum).join('–')));
+  if (v.data) meta.appendChild(chipMeta('data', v.data + (v.data_estimada ? ' (est.)' : '')));
+  if (v.possivelmente_expirada) meta.appendChild(el('span', {class:'chip alerta', texto:'possivelmente expirada'}));
+  if (v.modalidade_conflito) meta.appendChild(el('span', {class:'chip alerta', texto:'modalidade conflitante'}));
+  for (const c of (v.restricoes_chips || [])) meta.appendChild(el('span', {class:'chip alerta', texto: c}));
+  cardEl.appendChild(meta);
+
+  if (DADOS.privado){
+    const estado = el('div', {class:'linha-estado'}, [pillStatus(v.status || 'novo')]);
+    if (v.elegivel) estado.appendChild(pillEleg(v.elegivel));
+    cardEl.appendChild(estado);
+    if (v.elegivel_motivos && v.elegivel_motivos.length) cardEl.appendChild(el('p', {class:'motivo', texto: v.elegivel_motivos.join(' · ')}));
+  }
+
+  cardEl.appendChild(chipsDeSkills(v));
 
   const rotulosSecao = {descricao:'Descrição', responsabilidades:'Responsabilidades', requisitos:'Requisitos',
     diferenciais:'Diferenciais', beneficios:'Benefícios', sobre_empresa:'Sobre a empresa'};
   for (const [chave, rotulo] of Object.entries(rotulosSecao)){
     if (v.secoes && v.secoes[chave]){
-      const det = el('details');
-      det.appendChild(el('summary', {texto: rotulo}));
-      det.appendChild(el('p', {texto: v.secoes[chave]}));
-      card.appendChild(det);
+      cardEl.appendChild(el('details', {}, [el('summary', {texto: rotulo}), el('p', {texto: v.secoes[chave]})]));
     }
   }
 
-  if (v.url) card.appendChild(el('a', {class:'link-vaga', href: v.url, target:'_blank', rel:'noopener', texto:'Ver vaga original →'}));
+  const acoes = el('div', {class:'vaga-acoes'});
+  if (v.url) acoes.appendChild(el('a', {class:'btn btn-pequeno link-vaga', href: v.url, target:'_blank', rel:'noopener noreferrer', texto:'Ver vaga original ↗'}));
   if (DADOS.privado && DADOS.app_viva){
-    card.appendChild(document.createTextNode(' '));
-    card.appendChild(el('a', {class:'link-vaga', href: '/privado/vaga/' + v.id + '/editar', texto:'✎ Editar campos'}));
+    acoes.appendChild(el('a', {class:'btn btn-pequeno btn-claro', href: '/privado/vaga/' + encodeURIComponent(v.id) + '/editar', texto:'Editar vaga'}));
   }
+  if (acoes.childNodes.length) cardEl.appendChild(acoes);
 
   if (DADOS.privado){
-    if (DADOS.app_viva){
-      const form = el('form', {class:'form-status', method:'post', action:'/privado/vaga/' + v.id + '/atualizar'});
-      const select = el('select', {name:'status'});
-      for (const opcao of ['novo','interessado','aplicado','entrevista','oferta','recusado','arquivada']){
-        const opt = el('option', {value: opcao, texto: opcao});
-        if ((v.status || 'novo') === opcao) opt.selected = true;
-        select.appendChild(opt);
-      }
-      const textarea = el('textarea', {name:'nota', placeholder:'notas sobre esta vaga...'});
-      textarea.value = v.notas || '';
-      const botao = el('button', {type:'submit', texto:'Salvar status/notas'});
-      form.appendChild(select); form.appendChild(textarea); form.appendChild(botao);
-      card.appendChild(form);
-    } else {
-      card.appendChild(el('div', {class:'barrinha-status', texto:'Status: ' + (v.status || 'novo')}));
-      if (v.notas) card.appendChild(el('div', {class:'notas-caixa', texto: v.notas}));
-    }
+    if (DADOS.app_viva) cardEl.appendChild(formStatus(v));
+    else if (v.notas) cardEl.appendChild(el('div', {class:'notas-caixa', texto: v.notas}));
   }
-
-  return card;
+  return cardEl;
 }
-
 
 const ORDEM_TABELA = {campo: 'data', direcao: -1};
 
@@ -707,11 +764,10 @@ function renderTabelaVagas(vagas){
   if (!vagas.length){ container.appendChild(el('p', {class:'vazio', texto:'Nenhuma vaga com esses filtros.'})); return; }
 
   const colunas = [
-    {campo:'titulo', rotulo:'Título'}, {campo:'empresa', rotulo:'Empresa'},
-    {campo:'modalidade', rotulo:'Modalidade'}, {campo:'senioridade', rotulo:'Senioridade'},
+    {campo:'titulo', rotulo:'Vaga'}, {campo:'modalidade', rotulo:'Modalidade'}, {campo:'senioridade', rotulo:'Nível'},
     {campo:'mercado', rotulo:'Mercado'}, {campo:'data', rotulo:'Data'},
   ];
-  if (DADOS.privado) colunas.push({campo:'match', rotulo:'Match'}, {campo:'status', rotulo:'Status'});
+  if (DADOS.privado) colunas.push({campo:'match', rotulo:'Match'}, {campo:'elegivel', rotulo:'Elegível'}, {campo:'status', rotulo:'Status'});
 
   const ordenadas = [...vagas].sort((a,b) => {
     const campo = ORDEM_TABELA.campo;
@@ -726,37 +782,47 @@ function renderTabelaVagas(vagas){
   const tabela = el('table', {class:'tabela-vagas'});
   const cabecalho = el('tr');
   for (const col of colunas){
-    const th = el('th', {class:'ordenavel', texto: col.rotulo + (ORDEM_TABELA.campo === col.campo ? (ORDEM_TABELA.direcao === 1 ? ' ▲' : ' ▼') : '')});
-    th.addEventListener('click', () => {
+    const seta = ORDEM_TABELA.campo === col.campo ? (ORDEM_TABELA.direcao === 1 ? ' ▲' : ' ▼') : '';
+    const th = el('th', {class:'ordenavel', scope:'col', tabindex:'0', texto: col.rotulo + seta,
+      'aria-sort': ORDEM_TABELA.campo === col.campo ? (ORDEM_TABELA.direcao === 1 ? 'ascending' : 'descending') : null});
+    const ordenar = () => {
       if (ORDEM_TABELA.campo === col.campo) ORDEM_TABELA.direcao *= -1;
       else { ORDEM_TABELA.campo = col.campo; ORDEM_TABELA.direcao = 1; }
       renderTabelaVagas(vagas);
-    });
+    };
+    th.addEventListener('click', ordenar);
+    th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); ordenar(); } });
     cabecalho.appendChild(th);
   }
-  cabecalho.appendChild(el('th', {texto:''}));
-  const thead = el('thead'); thead.appendChild(cabecalho); tabela.appendChild(thead);
+  cabecalho.appendChild(el('th', {scope:'col'}, [el('span', {class:'sr-only', texto:'Ações'})]));
+  tabela.appendChild(el('thead', {}, [cabecalho]));
 
   const tbody = el('tbody');
   for (const v of ordenadas){
     const tr = el('tr');
-    tr.appendChild(el('td', {texto: v.titulo || '(sem título)'}));
-    tr.appendChild(el('td', {texto: v.empresa || 'não divulgada'}));
+    tr.appendChild(el('td', {class:'td-titulo'}, [el('strong', {texto: v.titulo || '(sem título)'}), el('span', {texto: v.empresa || 'não divulgada'})]));
     tr.appendChild(el('td', {texto: v.modalidade || '—'}));
     tr.appendChild(el('td', {texto: v.senioridade || '—'}));
     tr.appendChild(el('td', {texto: v.mercado || '—'}));
-    tr.appendChild(el('td', {texto: (v.data || '—') + (v.data_estimada ? ' (est.)' : '')}));
+    tr.appendChild(el('td', {class:'mono', texto: (v.data || '—') + (v.data_estimada ? ' (est.)' : '')}));
     if (DADOS.privado){
-      tr.appendChild(el('td', {texto: typeof v.match === 'number' ? formatarPct(v.match) : 'n/d'}));
-      tr.appendChild(el('td', {texto: v.status || 'novo'}));
+      const m = typeof v.match === 'number' ? v.match : null;
+      tr.appendChild(el('td', {}, [m === null ? el('span', {class:'muted', texto:'n/d'}) :
+        el('div', {class:'mini-match'}, [trilha(m*100, m >= 0.7 ? 'ok' : (m >= 0.45 ? 'falta' : 'perigo')), el('span', {texto: formatarPct(m)})])]));
+      tr.appendChild(el('td', {}, [v.elegivel ? el('span', {class:'pill eleg-' + v.elegivel, texto: ROTULO_ELEG[v.elegivel] || v.elegivel}) : el('span', {class:'muted', texto:'—'})]));
+      tr.appendChild(el('td', {}, [pillStatus(v.status || 'novo')]));
     }
-    const tdLink = el('td');
-    if (v.url) tdLink.appendChild(el('a', {class:'link-vaga', href: v.url, target:'_blank', rel:'noopener', texto:'abrir →'}));
+    const tdLink = el('td', {style:'white-space:nowrap'});
+    if (v.url) tdLink.appendChild(el('a', {class:'link-vaga', href: v.url, target:'_blank', rel:'noopener noreferrer', texto:'abrir ↗'}));
+    if (DADOS.privado && DADOS.app_viva){
+      tdLink.appendChild(document.createTextNode('  '));
+      tdLink.appendChild(el('a', {href: '/privado/vaga/' + encodeURIComponent(v.id) + '/editar', texto:'editar'}));
+    }
     tr.appendChild(tdLink);
     tbody.appendChild(tr);
   }
   tabela.appendChild(tbody);
-  container.appendChild(tabela);
+  container.appendChild(el('div', {class:'tabela-caixa'}, [tabela]));
 }
 
 function aplicarFiltrosVagas(){
@@ -768,10 +834,12 @@ function aplicarFiltrosVagas(){
   const familia = document.getElementById('f-familia').value;
   const skill = document.getElementById('f-skill').value;
   const restricao = document.getElementById('f-restricao').value;
+  const status = DADOS.privado ? document.getElementById('f-status').value : '';
   const soElegiveis = DADOS.privado && document.getElementById('f-so-elegiveis').checked;
+  const ordem = document.getElementById('f-ordem').value;
 
   let vagas = vagasDoRecorte(recorteAtual);
-  if (busca) vagas = vagas.filter(v => ((v.titulo||'') + ' ' + (v.empresa||'')).toLowerCase().includes(busca));
+  if (busca) vagas = vagas.filter(v => ((v.titulo||'') + ' ' + (v.empresa||'') + ' ' + v.skills.map(s => s.skill).join(' ')).toLowerCase().includes(busca));
   if (senioridade) vagas = vagas.filter(v => v.senioridade === senioridade);
   if (modalidade) vagas = vagas.filter(v => v.modalidade === modalidade);
   if (contrato) vagas = vagas.filter(v => v.contrato === contrato);
@@ -779,9 +847,16 @@ function aplicarFiltrosVagas(){
   if (familia) vagas = vagas.filter(v => v.familia_cargo === familia);
   if (skill) vagas = vagas.filter(v => v.skills.some(s => s.skill === skill));
   if (restricao) vagas = vagas.filter(v => tipoRestricao(v) === restricao);
+  if (status) vagas = vagas.filter(v => (v.status || 'novo') === status);
   if (soElegiveis) vagas = vagas.filter(v => v.elegivel !== 'nao');
 
-  document.getElementById('contador-vagas').textContent = vagas.length + ' vaga(s) encontrada(s).';
+  vagas = [...vagas].sort((a,b) => {
+    if (ordem === 'match') return (b.match ?? -1) - (a.match ?? -1);
+    if (ordem === 'titulo') return (a.titulo||'').localeCompare(b.titulo||'', 'pt-BR');
+    return (b.data||'').localeCompare(a.data||'');
+  });
+
+  document.getElementById('contador-vagas').textContent = vagas.length + ' vaga(s) · recorte ' + ROTULO_RECORTE[recorteAtual];
 
   const lista = document.getElementById('lista-vagas');
   lista.innerHTML = '';
@@ -796,11 +871,60 @@ function alternarVisualizacao(modo){
   document.getElementById('tabela-vagas-container').hidden = modo !== 'tabela';
   for (const btn of document.querySelectorAll('.alternador-visualizacao button')){
     btn.classList.toggle('ativo', btn.dataset.vis === modo);
+    btn.setAttribute('aria-pressed', btn.dataset.vis === modo ? 'true' : 'false');
   }
 }
-
 for (const btn of document.querySelectorAll('.alternador-visualizacao button')){
   btn.addEventListener('click', () => alternarVisualizacao(btn.dataset.vis));
+}
+
+function formMover(v, destino, rotulo, icone, principal){
+  const form = el('form', {method:'post', action:'/privado/vaga/' + encodeURIComponent(v.id) + '/status'});
+  form.appendChild(el('input', {type:'hidden', name:'status', value: destino}));
+  const botao = el('button', {type:'submit', class:'btn btn-pequeno' + (principal ? '' : ' btn-icone'), 'aria-label': rotulo + ': ' + (v.titulo || 'vaga'), title: rotulo});
+  if (principal) botao.appendChild(document.createTextNode(destino + ' →'));
+  else botao.appendChild(document.createTextNode('←'));
+  form.appendChild(botao);
+  return form;
+}
+
+function renderPipeline(){
+  if (!DADOS.privado) return;
+  const kanban = document.getElementById('kanban');
+  kanban.innerHTML = '';
+  const MAX_POR_COLUNA = 15;
+  const CORES = {novo:'var(--muted)', interessado:'var(--info)', aplicado:'var(--neutral)', entrevista:'var(--warn)', oferta:'var(--accent)', recusado:'var(--danger)'};
+  let ativas = 0;
+  ETAPAS.forEach((etapa, i) => {
+    const vagas = DADOS.vagas.filter(v => (v.status || 'novo') === etapa)
+      .sort((a,b) => (b.match ?? -1) - (a.match ?? -1));
+    if (etapa !== 'novo' && etapa !== 'recusado') ativas += vagas.length;
+    const coluna = el('section', {class:'coluna', 'aria-label': etapa});
+    const topo = el('div', {class:'coluna-topo'}, [el('strong', {texto: etapa}), el('span', {texto: String(vagas.length)})]);
+    topo.style.color = CORES[etapa];
+    coluna.appendChild(topo);
+    for (const v of vagas.slice(0, MAX_POR_COLUNA)){
+      const cartao = el('article', {class:'cartao'}, [
+        el('div', {class:'topo'}, [el('span', {class:'m', texto: typeof v.match === 'number' ? formatarPct(v.match) + ' match' : 'match n/d'}), el('span', {texto: v.mercado || ''})]),
+        el('h3', {texto: v.titulo || '(sem título)'}),
+        el('p', {class:'empresa', texto: v.empresa || 'empresa não divulgada'}),
+      ]);
+      if (DADOS.app_viva){
+        const acoes = el('div', {class:'cartao-acoes'});
+        if (i > 0) acoes.appendChild(formMover(v, ETAPAS[i-1], 'Voltar para ' + ETAPAS[i-1], 'seta-esq', false));
+        if (i < ETAPAS.length - 1) acoes.appendChild(formMover(v, ETAPAS[i+1], 'Mover para ' + ETAPAS[i+1], 'seta-dir', true));
+        cartao.appendChild(acoes);
+      }
+      coluna.appendChild(cartao);
+    }
+    if (vagas.length > MAX_POR_COLUNA) coluna.appendChild(el('div', {class:'mais-cartoes', texto: '+' + (vagas.length - MAX_POR_COLUNA) + ' outras — filtre por status na aba Vagas'}));
+    if (!vagas.length) coluna.appendChild(el('p', {class:'vazio', style:'text-align:center', texto:'Nada aqui ainda'}));
+    kanban.appendChild(coluna);
+  });
+  document.getElementById('resumo-pipeline').textContent = ativas + ' candidatura(s) em andamento' +
+    (DADOS.app_viva ? ' · use os botões para mover uma vaga de etapa' : '');
+  const contador = document.getElementById('contador-aba-pipeline');
+  if (contador) contador.textContent = String(ativas);
 }
 
 function renderMeuCv(){
@@ -810,13 +934,19 @@ function renderMeuCv(){
 
   const lacunasCont = document.getElementById('cv-lacunas');
   lacunasCont.innerHTML = '';
-  if (!cv.cv_utilizavel) lacunasCont.appendChild(el('p', {class:'vazio', texto:'CV não utilizável (texto muito curto).'}));
+  if (!cv.cv_utilizavel) lacunasCont.appendChild(el('p', {class:'vazio', texto:'CV não utilizável (texto muito curto ou ausente em cv/).'}));
   else if (!cv.lacunas.length) lacunasCont.appendChild(el('p', {class:'vazio', texto:'Nenhuma lacuna identificada.'}));
   else {
-    const tabela = el('table');
-    tabela.innerHTML = '<tr><th>Skill</th><th>score_lacuna</th><th>Prioridade</th></tr>' +
-      cv.lacunas.slice(0,20).map(l => '<tr><td>'+l.skill+'</td><td>'+l.score_lacuna.toFixed(2)+'</td><td>'+l.prioridade+'</td></tr>').join('');
-    lacunasCont.appendChild(tabela);
+    const lista = el('div', {class:'barras'});
+    const maior = Math.max(...cv.lacunas.slice(0,15).map(l => l.score_lacuna), 0.0001);
+    for (const l of cv.lacunas.slice(0, 15)){
+      lista.appendChild(el('div', {class:'barra'}, [
+        el('span', {class:'nome', texto: l.skill, title: l.categoria}),
+        trilha(l.score_lacuna / maior * 100, 'falta'),
+        el('span', {class:'valor prio ' + (l.prioridade === 'média' ? 'media' : l.prioridade), texto: l.prioridade}),
+      ]));
+    }
+    lacunasCont.appendChild(lista);
   }
 
   const planoCont = document.getElementById('cv-plano');
@@ -827,24 +957,23 @@ function renderMeuCv(){
     porCategoria.get(l.categoria).push(l);
   }
   if (!porCategoria.size) planoCont.appendChild(el('p', {class:'vazio', texto:'Sem plano — nenhuma lacuna.'}));
-  for (const [categoria, itens] of porCategoria){
-    const p = el('p');
-    p.appendChild(el('strong', {texto: categoria}));
-    p.appendChild(document.createTextNode(': ' + itens.map(i => i.skill + ' (' + i.prioridade + ')').join(', ')));
-    planoCont.appendChild(p);
-  }
+  const plano = el('div', {class:'plano'});
+  const ordem = [...porCategoria.entries()].sort((a,b) => b[1].reduce((s,x)=>s+x.score_lacuna,0) - a[1].reduce((s,x)=>s+x.score_lacuna,0));
+  ordem.forEach(([categoria, itens], idx) => {
+    const chips = el('div', {class:'chips'});
+    for (const i of itens.slice(0, 8)) chips.appendChild(el('span', {class:'chip falta', texto: i.skill}));
+    plano.appendChild(el('div', {class:'plano-item'}, [
+      el('div', {class:'topo'}, [el('strong', {texto: categoria}), el('span', {class:'prio', texto: 'prioridade ' + (idx + 1)})]),
+      chips,
+    ]));
+  });
+  planoCont.appendChild(plano);
 
   const evolCont = document.getElementById('cv-evolucao');
   evolCont.innerHTML = '';
   const entradas = (cv.historico || []).filter(h => h.recorte === 'todos').sort((a,b)=> a.data.localeCompare(b.data));
   if (!entradas.length){ evolCont.appendChild(el('p', {class:'vazio', texto:'Sem histórico ainda.'})); }
-  else {
-    renderGraficoLinha(evolCont, entradas, 'cobertura_geral');
-    const tabela = el('table');
-    tabela.innerHTML = '<tr><th>Data</th><th>Vagas ativas</th><th>Cobertura geral</th></tr>' +
-      entradas.map(h => '<tr><td>'+h.data+'</td><td>'+h.n_vagas_ativas+'</td><td>'+formatarPct(h.cobertura_geral)+'</td></tr>').join('');
-    evolCont.appendChild(tabela);
-  }
+  else renderGraficoLinha(evolCont, entradas, 'cobertura_geral');
 }
 
 function renderGraficoLinha(container, entradas, campo){
@@ -853,7 +982,7 @@ function renderGraficoLinha(container, entradas, campo){
     container.appendChild(el('p', {class:'vazio', texto:'Pontos insuficientes para o gráfico (mínimo 2 dias com dado).'}));
     return;
   }
-  const largura = 560, altura = 160, margem = 28;
+  const largura = 760, altura = 180, margem = 30;
   const valores = pontos.map(p => p[campo]);
   const minV = Math.min(...valores, 0);
   const maxV = Math.max(...valores, minV + 0.01);
@@ -865,6 +994,8 @@ function renderGraficoLinha(container, entradas, campo){
   const svg = document.createElementNS(svgNS, 'svg');
   svg.setAttribute('viewBox', '0 0 ' + largura + ' ' + altura);
   svg.setAttribute('class', 'grafico-linha');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', 'Cobertura do CV de ' + formatarPct(valores[0]) + ' para ' + formatarPct(valores[valores.length-1]));
 
   const eixo = document.createElementNS(svgNS, 'line');
   eixo.setAttribute('x1', margem); eixo.setAttribute('x2', largura - margem);
@@ -879,7 +1010,7 @@ function renderGraficoLinha(container, entradas, campo){
 
   coords.forEach(([x, y], i) => {
     const ponto = document.createElementNS(svgNS, 'circle');
-    ponto.setAttribute('cx', x); ponto.setAttribute('cy', y); ponto.setAttribute('r', 3);
+    ponto.setAttribute('cx', x); ponto.setAttribute('cy', y); ponto.setAttribute('r', 3.5);
     ponto.setAttribute('class', 'ponto');
     const tituloEl = document.createElementNS(svgNS, 'title');
     tituloEl.textContent = pontos[i].data + ': ' + formatarPct(pontos[i][campo]);
@@ -887,16 +1018,12 @@ function renderGraficoLinha(container, entradas, campo){
     svg.appendChild(ponto);
   });
 
-  const txtInicio = document.createElementNS(svgNS, 'text');
-  txtInicio.setAttribute('x', margem); txtInicio.setAttribute('y', altura - 8); txtInicio.setAttribute('text-anchor', 'start');
-  txtInicio.textContent = pontos[0].data;
-  svg.appendChild(txtInicio);
-
-  const txtFim = document.createElementNS(svgNS, 'text');
-  txtFim.setAttribute('x', largura - margem); txtFim.setAttribute('y', altura - 8); txtFim.setAttribute('text-anchor', 'end');
-  txtFim.textContent = pontos[pontos.length - 1].data;
-  svg.appendChild(txtFim);
-
+  for (const [x, texto, ancora] of [[margem, pontos[0].data, 'start'], [largura - margem, pontos[pontos.length - 1].data, 'end']]){
+    const t = document.createElementNS(svgNS, 'text');
+    t.setAttribute('x', x); t.setAttribute('y', altura - 8); t.setAttribute('text-anchor', ancora);
+    t.textContent = texto;
+    svg.appendChild(t);
+  }
   container.appendChild(svg);
 }
 
@@ -904,12 +1031,12 @@ function montarSeletorRecorte(){
   const cont = document.getElementById('seletor-recorte');
   const recortes = [['BR','BR'], ['INT_acessivel','INT acessível'], ['INT_restrito','INT restrito'], ['todos','Todos']];
   for (const [valor, rotulo] of recortes){
-    const btn = el('button', {texto: rotulo});
+    const btn = el('button', {type:'button', texto: rotulo, 'aria-pressed': valor === recorteAtual ? 'true' : 'false'});
     if (valor === recorteAtual) btn.classList.add('ativo');
     btn.addEventListener('click', () => {
       recorteAtual = valor;
-      for (const b of cont.querySelectorAll('button')) b.classList.remove('ativo');
-      btn.classList.add('ativo');
+      for (const b of cont.querySelectorAll('button')){ b.classList.remove('ativo'); b.setAttribute('aria-pressed', 'false'); }
+      btn.classList.add('ativo'); btn.setAttribute('aria-pressed', 'true');
       renderPainel();
       aplicarFiltrosVagas();
     });
@@ -917,37 +1044,37 @@ function montarSeletorRecorte(){
   }
 }
 
-function trocarAba(nome){
+function paginaExiste(nome){
+  const botao = document.querySelector('[data-pagina="' + nome + '"]');
+  return !!document.getElementById('pagina-' + nome) && !!botao && !botao.hidden;
+}
+
+function trocarAba(nome, atualizarHash){
+  if (!paginaExiste(nome)) nome = 'painel';
   for (const sec of document.querySelectorAll('section.pagina')) sec.classList.remove('ativa');
   document.getElementById('pagina-' + nome).classList.add('ativa');
-  for (const btn of document.querySelectorAll('nav.abas button')) btn.classList.remove('ativa');
-  document.querySelector('nav.abas button[data-pagina="' + nome + '"]').classList.add('ativa');
-}
-
-for (const btn of document.querySelectorAll('nav.abas button')){
-  btn.addEventListener('click', () => trocarAba(btn.dataset.pagina));
-}
-
-if (DADOS.privado) document.getElementById('rotulo-so-elegiveis').hidden = false;
-if (DADOS.privado && DADOS.app_viva) document.getElementById('acoes-app-viva').hidden = false;
-
-if (DADOS.app_viva){
-  const siteNav = document.getElementById('site-nav');
-  siteNav.hidden = false;
-  const caminhoAtual = window.location.pathname;
-  const hashAtual = window.location.hash;
-  let melhorMatch = null;
-  for (const a of siteNav.querySelectorAll('a')){
-    const url = new URL(a.getAttribute('href'), window.location.origin);
-    if (url.pathname !== caminhoAtual) continue;
-    // prefere o item cujo hash bate exatamente; sem hash, cai no item "base" da página (ex.: Painel público/privado).
-    if (url.hash === hashAtual) { melhorMatch = a; break; }
-    if (!url.hash && !melhorMatch) melhorMatch = a;
+  for (const btn of document.querySelectorAll('[data-pagina]')){
+    const atual = btn.dataset.pagina === nome;
+    btn.classList.toggle('atual', atual);
+    if (atual) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
   }
-  if (melhorMatch) melhorMatch.classList.add('atual');
+  if (atualizarHash) history.replaceState(null, '', '#' + nome);
+  window.scrollTo(0, 0);
+}
 
-  if (hashAtual === '#vagas' && document.getElementById('pagina-vagas')) trocarAba('vagas');
-  else if (hashAtual === '#meu-cv' && document.getElementById('pagina-meu-cv')) trocarAba('meu-cv');
+for (const btn of document.querySelectorAll('[data-pagina]')){
+  btn.addEventListener('click', () => trocarAba(btn.dataset.pagina, true));
+}
+window.addEventListener('hashchange', () => trocarAba(window.location.hash.slice(1) || 'painel', false));
+
+if (DADOS.privado){
+  document.getElementById('rotulo-so-elegiveis').hidden = false;
+  document.getElementById('rotulo-status').hidden = false;
+  document.getElementById('opcao-ordem-match').hidden = false;
+}
+if (DADOS.privado && DADOS.app_viva){
+  document.getElementById('acoes-app-viva').hidden = false;
+  document.getElementById('acoes-vagas-app-viva').hidden = false;
 }
 
 montarSeletorRecorte();
@@ -956,9 +1083,13 @@ renderPainel();
 renderComparacaoBrInt();
 renderComparacaoFamilias();
 aplicarFiltrosVagas();
+renderPipeline();
 renderMeuCv();
+const contadorVagas = document.getElementById('contador-aba-vagas');
+if (contadorVagas) contadorVagas.textContent = String(DADOS.vagas.length);
+trocarAba((window.location.hash || '#painel').slice(1), false);
 
-for (const idCampo of ['f-busca','f-senioridade','f-modalidade','f-contrato','f-vinculo','f-familia','f-skill','f-restricao','f-so-elegiveis']){
+for (const idCampo of ['f-busca','f-senioridade','f-modalidade','f-contrato','f-vinculo','f-familia','f-skill','f-restricao','f-status','f-so-elegiveis','f-ordem']){
   const elemento = document.getElementById(idCampo);
   elemento.addEventListener('input', aplicarFiltrosVagas);
   elemento.addEventListener('change', aplicarFiltrosVagas);
@@ -969,6 +1100,47 @@ for (const idCampo of ['f-busca','f-senioridade','f-modalidade','f-contrato','f-
 """
 
 
+def _lateral(payload: dict) -> str:
+    """Barra lateral do painel: botões que trocam de aba sem recarregar
+    (funciona no snapshot estático) e, só na app local, links para as
+    páginas de edição/ferramentas."""
+    privado = bool(payload.get("privado"))
+    viva = bool(payload.get("app_viva"))
+
+    abas = [("painel", "Painel", "painel", False), ("vagas", "Vagas", "vagas", False)]
+    if privado:
+        abas += [("pipeline", "Pipeline", "pipeline", False), ("meu-cv", "Meu CV", "cv", True)]
+
+    itens = []
+    for chave, rotulo, nome_icone, oculto in abas:
+        itens.append(
+            f'<button type="button" class="menu-item" data-pagina="{chave}" id="aba-{chave}"'
+            f'{" hidden" if oculto else ""}>{estilo.icone(nome_icone)}{rotulo}'
+            f'<span class="contador" id="contador-aba-{chave}"></span></button>'
+        )
+
+    if viva:
+        itens.append('<div class="menu-grupo">Ferramentas</div>')
+        for chave, rotulo, nome_icone, href in estilo.MENU_APP_FERRAMENTAS:
+            if chave == "publico" and not privado:
+                rotulo, nome_icone, href = "Painel privado", "escudo", "/privado"
+            itens.append(f'<a class="menu-item" href="{href}">{estilo.icone(nome_icone)}{rotulo}</a>')
+
+    return (
+        f'<aside class="lateral">{estilo.marca(None)}'
+        f'<nav class="menu" aria-label="Principal">{"".join(itens)}</nav></aside>'
+    )
+
+
 def gerar_html(payload: dict, titulo: str) -> str:
     dados_json = _embutir_json(payload)
-    return _TEMPLATE.replace("__DADOS_JSON__", dados_json).replace("__TITULO__", titulo)
+    titulo_seguro = html_lib.escape(titulo)
+    return (
+        _TEMPLATE.replace("__ESTILO_BASE__", estilo.CSS_BASE)
+        .replace("__LATERAL__", _lateral(payload))
+        .replace("__ICONE_BAIXAR__", estilo.icone("baixar", 16))
+        .replace("__ICONE_RECARREGAR__", estilo.icone("recarregar", 16))
+        .replace("__ICONE_MAIS__", estilo.icone("mais", 16))
+        .replace("__TITULO__", titulo_seguro)
+        .replace("__DADOS_JSON__", dados_json)
+    )
