@@ -135,11 +135,13 @@ como preferir:
 
 | O que | Pela CLI | Pelo navegador (`serve`) |
 |---|---|---|
-| Vaga nova (colada) | `python run.py paste` (lê a área de transferência) ou `python run.py split arquivo.txt` | aba **"+ Adicionar vaga"**: cola o texto num formulário |
+| Vaga nova (colada) | `python run.py paste` (lê a área de transferência) ou `python run.py split arquivo.txt` | menu **"Adicionar vaga"**: cola o texto num formulário |
+| Editar qualquer campo de uma vaga (título, local, família, salário, anos, restrições, skills, status, notas) | — | botão **"Editar vaga"** em cada card/linha da aba Vagas |
+| Perfil profissional (nome, headline, resumo, experiências, formação, certificações, skills, idiomas) | `python run.py import-linkedin Profile.pdf` | **Meu perfil → Editar perfil** (ou importar o PDF do LinkedIn na mesma página) |
 | Vagas via coletor automático | `python run.py collect` (grava na inbox) + `python run.py process` | botão **"↻ Coletar vagas novas"** no painel privado |
-| Perfil (cidadania, residência, clearances, idiomas) | editar `privado/perfil.json` manualmente (só na primeira vez — depois disso o banco manda) | aba **"Perfil"**: formulário com os mesmos campos |
+| Perfil (cidadania, residência, clearances, idiomas) | editar `privado/perfil.json` manualmente (só na primeira vez — depois disso o banco manda) | menu **"Elegibilidade"**: formulário com os mesmos campos |
 | CV | solte um arquivo em `cv/` (PDF/DOCX/TXT/MD) | (sem upload pela web ainda — continue soltando o arquivo em `cv/`) |
-| Status / notas de uma vaga | `python run.py status <id> <status> --note "..."` | formulário dentro de cada card, no painel privado |
+| Status / notas de uma vaga | `python run.py status <id> <status> --note "..."` | formulário dentro de cada card, ou os botões ← / → na aba **Pipeline** |
 | Recalcular elegibilidade/cobertura/lacunas | `python run.py analyze` | botão **"↻ Recalcular análise/CV"** no painel privado |
 
 **Se você já tinha `data/vagas.json` e/ou `privado/perfil.json` de uma
