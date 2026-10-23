@@ -120,41 +120,45 @@ _TEMPLATE = r"""<!doctype html>
 <link rel="icon" href="data:,">
 <style>
 :root{
-  --bg:#f6f7f8; --fg:#2b3640; --card:#ffffff; --border:#e1e4e8; --muted:#64707a;
-  --accent:#1f6f78; --accent-bg:#e5f2f1; --chip-bg:#eef1f3; --green:#2f9e44; --green-bg:#e9f7ef;
-  --red:#d6475c; --red-bg:#fceef0; --bar-bg:#e7eaed;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --bg:#f7f7f5; --fg:#15180f; --card:#ffffff; --border:#e2e5de; --muted:#6b7268;
+  --accent:#1f8a5c; --accent-bg:#e7f3ec; --chip-bg:#eef0ea; --green:#1f8a5c; --green-bg:#e7f3ec;
+  --red:#c6394f; --red-bg:#fbeced; --bar-bg:#e7eae1;
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#14181a; --fg:#e7ebec; --card:#1d2225; --border:#2c3337; --muted:#9aa6ac;
-    --accent:#4fb6bf; --accent-bg:#162b2c; --chip-bg:#262c2f; --green:#51cf66; --green-bg:#16301f;
-    --red:#ff7a8a; --red-bg:#3a1b22; --bar-bg:#262c2f;
+    --bg:#0a0c0a; --fg:#e6ebe4; --card:#121412; --border:#232923; --muted:#8a9388;
+    --accent:#39d98a; --accent-bg:#102018; --chip-bg:#1a1d18; --green:#39d98a; --green-bg:#102018;
+    --red:#ff6b7a; --red-bg:#2a1418; --bar-bg:#1b1f1b;
   }
 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-  margin:0;padding:0 16px 48px;line-height:1.45}
+  margin:0;padding:0 16px 48px;line-height:1.5}
 h1,h2,h3{line-height:1.25}
-header{position:sticky;top:0;z-index:10;background:var(--bg);padding:14px 0 0;margin-bottom:4px}
-header h1{margin:0 0 4px;font-size:1.3rem;font-weight:700;letter-spacing:-.01em}
-header p{margin:0 0 10px;color:var(--muted);font-size:.85rem}
-.site-nav{display:flex;gap:2px;flex-wrap:wrap;background:var(--chip-bg);border:1px solid var(--border);
-  border-radius:10px;padding:5px;margin-bottom:0}
-.site-nav a{color:var(--muted);text-decoration:none;font-size:.82rem;font-weight:600;
-  padding:7px 14px;border-radius:7px;white-space:nowrap}
-.site-nav a:hover{color:var(--fg);background:var(--card)}
-.site-nav a.atual{color:#fff;background:var(--accent)}
+header{position:sticky;top:0;z-index:10;background:var(--bg);padding:18px 0 0;margin-bottom:4px}
+header h1{margin:0 0 6px;font-size:1.3rem;font-weight:700;letter-spacing:-.01em}
+header h1::before{content:'> ';color:var(--accent);font-family:var(--mono)}
+header p{margin:0 0 14px;color:var(--muted);font-size:.82rem;font-family:var(--mono)}
+.site-nav{display:flex;gap:2px;flex-wrap:wrap;background:transparent;border:0;border-bottom:1px solid var(--border);
+  padding:0 0 10px;margin-bottom:4px;font-family:var(--mono)}
+.site-nav a{color:var(--muted);text-decoration:none;font-size:.76rem;font-weight:600;letter-spacing:.02em;
+  padding:7px 12px;border-radius:5px;white-space:nowrap;text-transform:uppercase}
+.site-nav a:hover{color:var(--fg);background:var(--chip-bg)}
+.site-nav a.atual{color:var(--accent);background:var(--accent-bg)}
 nav.abas{display:flex;gap:4px;margin:14px 0 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
 nav.abas button{background:none;border:none;color:var(--muted);padding:9px 16px;cursor:pointer;
-  border-bottom:2px solid transparent;font-size:.88rem;font-weight:600;border-radius:6px 6px 0 0;
-  transition:color .15s,background .15s}
+  border-bottom:2px solid transparent;font-size:.84rem;font-weight:600;font-family:var(--mono);
+  letter-spacing:.02em;text-transform:uppercase;border-radius:6px 6px 0 0;transition:color .15s,background .15s}
 nav.abas button:hover{color:var(--fg);background:var(--chip-bg)}
 nav.abas button.ativa{border-bottom-color:var(--accent);color:var(--accent)}
 section.pagina{display:none}
 section.pagina.ativa{display:block}
-.grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:14px 0}
+.grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:14px 0;counter-reset:secao}
 .painel-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
-.painel-card h3{margin:0 0 10px;font-size:.95rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.painel-card h3{margin:0 0 10px;font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;
+  font-family:var(--mono)}
+.painel-card h3::before{counter-increment:secao;content:counter(secao,decimal-leading-zero) " / ";color:var(--accent)}
 .totais{display:flex;gap:18px;flex-wrap:wrap}
 .totais .num{font-size:1.6rem;font-weight:700}
 .totais .rotulo{font-size:.8rem;color:var(--muted)}
@@ -169,7 +173,8 @@ select,input[type="search"]{background:var(--card);color:var(--fg);border:1px so
 .filtros label{font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;gap:2px}
 .recortes{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .recortes button{border:1px solid var(--border);background:var(--card);color:var(--fg);
-  border-radius:20px;padding:6px 14px;cursor:pointer;font-size:.85rem}
+  border-radius:20px;padding:6px 14px;cursor:pointer;font-size:.78rem;font-family:var(--mono);
+  text-transform:uppercase;letter-spacing:.02em}
 .recortes button.ativo{background:var(--accent);color:#fff;border-color:var(--accent)}
 .lista-vagas{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-top:12px}
 .vaga{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:.88rem;
@@ -201,8 +206,8 @@ a.link-vaga{color:var(--accent);font-size:.85rem;font-weight:600}
 .elegivel-talvez{color:#e8a33d}
 table{border-collapse:collapse;width:100%;font-size:.84rem}
 table th{position:sticky;top:0;background:var(--card);border-bottom:2px solid var(--border);
-  padding:7px 8px;text-align:left;font-size:.75rem;text-transform:uppercase;letter-spacing:.02em;
-  color:var(--muted);cursor:default}
+  padding:7px 8px;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.02em;
+  color:var(--muted);cursor:default;font-family:var(--mono)}
 table th.ordenavel{cursor:pointer}
 table th.ordenavel:hover{color:var(--accent)}
 table td{border-bottom:1px solid var(--border);padding:7px 8px;text-align:left}
@@ -226,8 +231,10 @@ table.tabela-vagas tbody tr:nth-child(even){background:color-mix(in srgb, var(--
 .kpi-tile{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;
   position:relative;overflow:hidden}
 .kpi-tile.destaque{border-color:var(--accent)}
-.kpi-tile .kpi-rotulo{font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
-.kpi-tile .kpi-valor{font-size:2rem;font-weight:800;margin:4px 0 2px;line-height:1}
+.kpi-tile .kpi-rotulo{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;
+  font-family:var(--mono)}
+.kpi-tile .kpi-rotulo::before{content:'// ';opacity:.55}
+.kpi-tile .kpi-valor{font-size:2rem;font-weight:800;margin:4px 0 2px;line-height:1;font-family:var(--mono)}
 .kpi-tile .kpi-nota{font-size:.76rem;color:var(--muted)}
 .kpi-tile a{color:inherit;text-decoration:none;display:block}
 .kpi-tile a:hover .kpi-valor{color:var(--accent)}
@@ -279,14 +286,6 @@ footer{margin-top:30px;color:var(--muted);font-size:.78rem}
     <div class="painel-card">
       <h3>Comparação por família de cargo</h3>
       <div id="comparacao-familias"></div>
-    </div>
-    <div class="painel-card">
-      <h3>Em alta (30 dias vs. anterior)</h3>
-      <div id="tendencia"></div>
-    </div>
-    <div class="painel-card">
-      <h3>Qualidade dos dados</h3>
-      <div id="qualidade-dados"></div>
     </div>
   </div>
 </section>
@@ -519,19 +518,20 @@ function renderPainel(){
   renderBarras(divCat, rankingCategorias(vagas), l => l.categoria, 10);
   grade.appendChild(catCard);
 
+  const perfilCard = el('div', {class:'painel-card'});
+  perfilCard.appendChild(el('h3', {texto:'Perfil das vagas'}));
   for (const [campo, titulo] of [['senioridade','Senioridade'], ['modalidade','Modalidade'], ['tipo_vinculo','Vínculo'], ['familia_cargo','Família']]){
-    const card = el('div', {class:'painel-card'});
-    card.appendChild(el('h3', {texto: titulo}));
+    perfilCard.appendChild(el('p', {class:'muted', texto: titulo, style:'margin:10px 0 2px;font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;font-family:var(--mono)'}));
     const dist = distribuicao(vagas, campo);
-    if (!dist.length) card.appendChild(el('p', {class:'vazio', texto:'Sem dados.'}));
+    if (!dist.length) perfilCard.appendChild(el('p', {class:'vazio', texto:'Sem dados.'}));
     for (const d of dist){
-      card.appendChild(el('div', {class:'barra-linha'}, [
+      perfilCard.appendChild(el('div', {class:'barra-linha'}, [
         el('span', {class:'nome', texto: d.valor}),
         el('span', {class:'valor', texto: d.n + ' (' + formatarPct(d.percentual) + ')'}),
       ]));
     }
-    grade.appendChild(card);
   }
+  grade.appendChild(perfilCard);
 
   const salCard = el('div', {class:'painel-card'});
   salCard.appendChild(el('h3', {texto:'Faixas salariais (sem conversão de moeda)'}));
@@ -566,26 +566,6 @@ function renderComparacaoFamilias(){
     const top = (info.top_skills||[]).slice(0,5).map(s=>s.skill).join(', ') || '—';
     cont.appendChild(el('p', {texto: familia + ' (' + info.n_vagas + ' vagas): ' + top}));
   }
-}
-
-function renderTendencia(){
-  const cont = document.getElementById('tendencia');
-  cont.innerHTML = '';
-  const t = DADOS.tendencia || {status: 'dados insuficientes'};
-  if (t.status !== 'ok'){ cont.appendChild(el('p', {class:'vazio', texto:'Dados insuficientes.'})); return; }
-  const emAlta = t.tendencias.filter(x=>x.variacao>0).slice(0,10);
-  if (!emAlta.length){ cont.appendChild(el('p', {class:'vazio', texto:'Nenhuma skill em alta no momento.'})); return; }
-  for (const x of emAlta){
-    cont.appendChild(el('p', {texto: x.skill + ': ' + formatarPct(x.participacao_anterior) + ' → ' + formatarPct(x.participacao_recente)}));
-  }
-}
-
-function renderQualidadeDados(){
-  const cont = document.getElementById('qualidade-dados');
-  cont.innerHTML = '';
-  const q = DADOS.qualidade_dados;
-  if (!q){ cont.appendChild(el('p', {class:'vazio', texto:'Sem dados.'})); return; }
-  cont.appendChild(el('p', {texto: q.n_vagas + ' vaga(s) · ' + q.possivelmente_expiradas + ' possivelmente expirada(s) · ' + q.datas_estimadas + ' com data estimada · ' + q.anos_ambiguos + ' com anos de experiência ambíguos'}));
 }
 
 function popularSelect(id, valores){
@@ -975,8 +955,6 @@ construirListasDeFiltro();
 renderPainel();
 renderComparacaoBrInt();
 renderComparacaoFamilias();
-renderTendencia();
-renderQualidadeDados();
 aplicarFiltrosVagas();
 renderMeuCv();
 

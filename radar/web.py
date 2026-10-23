@@ -21,19 +21,25 @@ from radar import parser
 
 _ESTILO_FORM = """
 <style>
-:root{--bg:#f5f6f8;--fg:#1a1a1a;--card:#fff;--border:#dde1e6;--muted:#5a6270;--accent:#2b6cb0;--accent-bg:#e7f0fb}
-@media (prefers-color-scheme: dark){:root{--bg:#15161a;--fg:#eaeaea;--card:#1f2024;--border:#333640;--muted:#9aa2af;--accent:#6ea8e0;--accent-bg:#1c2b3a}}
+:root{--mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --bg:#f7f7f5;--fg:#15180f;--card:#fff;--border:#e2e5de;--muted:#6b7268;--accent:#1f8a5c;--accent-bg:#e7f3ec}
+@media (prefers-color-scheme: dark){:root{--bg:#0a0c0a;--fg:#e6ebe4;--card:#121412;--border:#232923;--muted:#8a9388;--accent:#39d98a;--accent-bg:#102018}}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;padding:0 16px 48px}
-header{padding:16px 0}
-nav a{color:var(--accent);text-decoration:none;margin-right:14px;font-size:.9rem}
+header{padding:18px 0}
+header h1{margin:0 0 4px;font-size:1.1rem}
+header h1::before{content:'> ';color:var(--accent);font-family:var(--mono)}
+nav{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding:0 0 10px;font-family:var(--mono)}
+nav a{color:var(--muted);text-decoration:none;font-size:.76rem;font-weight:600;letter-spacing:.02em;
+  padding:7px 12px;border-radius:5px;white-space:nowrap;text-transform:uppercase}
+nav a:hover{color:var(--fg);background:var(--accent-bg)}
 .caixa{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;max-width:640px;margin:16px 0}
 label{display:block;font-size:.82rem;color:var(--muted);margin:12px 0 4px}
 input[type=text],input[type=email],textarea,select{width:100%;background:var(--bg);color:var(--fg);
   border:1px solid var(--border);border-radius:6px;padding:8px;font-size:.9rem;font-family:inherit}
-textarea{min-height:220px;font-family:ui-monospace,monospace;font-size:.82rem}
-button{background:var(--accent);color:#fff;border:none;border-radius:6px;padding:9px 18px;font-size:.9rem;
-  cursor:pointer;margin-top:14px}
+textarea{min-height:220px;font-family:var(--mono);font-size:.82rem}
+button{background:var(--accent);color:#06130c;border:none;border-radius:6px;padding:9px 18px;font-size:.85rem;
+  cursor:pointer;margin-top:14px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.02em;font-weight:600}
 button.secundario{background:var(--card);color:var(--accent);border:1px solid var(--accent)}
 .aviso{background:var(--accent-bg);color:var(--accent);border-radius:8px;padding:10px 14px;margin:14px 0;font-size:.85rem}
 .checkbox-linha{display:flex;align-items:center;gap:8px;margin-top:12px}
@@ -48,6 +54,7 @@ def _layout(titulo: str, corpo: str) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{titulo}</title><link rel="icon" href="data:,">{_ESTILO_FORM}</head><body>
 <header>
+  <h1>Radar de Vagas</h1>
   <nav>
     <a href="{url_for('painel_publico')}">Painel público</a>
     <a href="{url_for('painel_privado')}">Painel privado</a>
@@ -172,32 +179,60 @@ def _render_sugestoes(sugestoes: list[str]) -> str:
     return "".join(f"<li>{html_lib.escape(s)}</li>" for s in sugestoes)
 
 
+def _render_melhorias_curriculo(lacunas: list[dict], n_vagas: int) -> str:
+    """Lacunas de maior prioridade entre as skills do mercado e o CV,
+    traduzidas em sugestões concretas do que adicionar ao currículo."""
+    if not n_vagas:
+        return '<p class="vazio-perfil">Sem vagas analisadas ainda — adicione vagas para gerar sugestões.</p>'
+    if not lacunas:
+        return '<p class="vazio-perfil">Nenhuma lacuna identificada — seu CV cobre bem as skills exigidas pelo mercado atual.</p>'
+    itens = []
+    for l in sorted(lacunas, key=lambda x: -x["score_lacuna"])[:8]:
+        prioridade = "alta" if l["score_lacuna"] >= 0.3 else ("média" if l["score_lacuna"] >= 0.1 else "baixa")
+        itens.append(
+            "<li>"
+            f'<strong>{html_lib.escape(l["skill"])}</strong> ({html_lib.escape(l["categoria"])}) — '
+            f'aparece em {l["n_vagas"]} de {n_vagas} vaga(s) analisada(s), prioridade {prioridade}. '
+            "Se você já tem essa experiência, inclua no currículo; senão, considere como próximo passo de estudo."
+            "</li>"
+        )
+    return f'<ul class="melhorias">{"".join(itens)}</ul>'
+
+
 _ESTILO_PERFIL_PROFISSIONAL = """
 <style>
+h2,h3{font-family:var(--mono);letter-spacing:-.01em}
+h3{font-size:.85rem;text-transform:uppercase;color:var(--muted);letter-spacing:.04em;margin-top:28px}
 .cartao-perfil{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;margin:16px 0}
 .cartao-perfil .avatar{width:88px;height:88px;border-radius:50%;background:var(--accent-bg);
   color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:2rem;
-  font-weight:700;flex:0 0 auto}
+  font-weight:700;flex:0 0 auto;font-family:var(--mono)}
 .bloco-score{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
 .barras-score{display:flex;flex-direction:column;gap:8px;min-width:220px}
-.barra-score-linha{display:flex;align-items:center;gap:8px;font-size:.82rem}
+.barra-score-linha{display:flex;align-items:center;gap:8px;font-size:.82rem;font-family:var(--mono)}
 .barra-score-linha .nome{flex:0 0 110px}
 .barra-score-linha .trilha{flex:1;background:var(--border);border-radius:4px;height:8px;overflow:hidden}
 .barra-score-linha .preenchido{background:var(--accent);height:100%;display:block}
 .exp-item{border-left:2px solid var(--border);padding:6px 0 14px 14px;margin-left:4px}
 .exp-empresa{color:var(--accent);font-weight:600;font-size:.88rem}
-.exp-periodo{color:var(--muted);font-size:.78rem;margin:2px 0}
+.exp-periodo{color:var(--muted);font-size:.78rem;margin:2px 0;font-family:var(--mono)}
 .exp-descricao{font-size:.84rem;margin-top:4px}
 .chip-ld{display:inline-block;background:var(--accent-bg);color:var(--accent);border-radius:999px;
   padding:4px 12px;font-size:.8rem;margin:0 6px 6px 0}
 .vazio-perfil{color:var(--muted);font-style:italic}
-ul.sugestoes{padding-left:18px}
-ul.sugestoes li{margin:4px 0;font-size:.86rem}
+ul.sugestoes,ul.melhorias{padding-left:18px}
+ul.sugestoes li,ul.melhorias li{margin:6px 0;font-size:.86rem}
+ul.melhorias li strong{color:var(--accent);font-family:var(--mono);font-weight:600}
+.acoes-perfil{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+.acoes-perfil a.botao,.acoes-perfil button{background:var(--accent);color:#06130c;border:none;border-radius:6px;
+  padding:9px 16px;font-size:.82rem;font-family:var(--mono);text-transform:uppercase;letter-spacing:.02em;
+  font-weight:600;text-decoration:none;cursor:pointer;display:inline-block}
+.acoes-perfil a.botao.secundario{background:var(--card);color:var(--accent);border:1px solid var(--accent)}
 </style>
 """
 
 
-def _pagina_perfil_profissional(perfil: dict, score_info: dict) -> str:
+def _pagina_perfil_profissional(perfil: dict, score_info: dict, lacunas: list[dict], n_vagas: int) -> str:
     aviso_sem_dados = ""
     if not perfil.get("nome"):
         aviso_sem_dados = (
@@ -238,8 +273,18 @@ def _pagina_perfil_profissional(perfil: dict, score_info: dict) -> str:
   </div>
   <p><strong>Classificação:</strong> {html_lib.escape(score_info['classificacao'])}</p>
 
+  <div class="acoes-perfil">
+    <a class="botao" href="/perfil-profissional/exportar.pdf">⭳ Exportar perfil revisado (PDF)</a>
+  </div>
+
   <h3>Sugestões</h3>
   <ul class="sugestoes">{_render_sugestoes(score_info['sugestoes'])}</ul>
+
+  <h3>Melhorias sugeridas no currículo</h3>
+  <p style="color:var(--muted);font-size:.84rem;margin-top:-6px">
+    Com base nas skills mais exigidas pelas vagas cadastradas e ausentes do seu CV atual.
+  </p>
+  {_render_melhorias_curriculo(lacunas, n_vagas)}
 
   <h3>Resumo</h3>
   <p>{html_lib.escape(perfil.get('resumo') or '(sem resumo importado)')}</p>
@@ -263,6 +308,76 @@ def _pagina_perfil_profissional(perfil: dict, score_info: dict) -> str:
   </form>
 </div>
 """
+
+
+_ESTILO_PERFIL_PDF = """
+<style>
+@page{size:A4;margin:28mm 20mm}
+*{box-sizing:border-box}
+body{font-family:Helvetica,Arial,sans-serif;color:#15180f;font-size:10.5pt;line-height:1.45;margin:0}
+h1{font-size:18pt;margin:0 0 2pt}
+h2{font-size:9pt;color:#6b7268;text-transform:uppercase;letter-spacing:.06em;margin:20pt 0 8pt;
+  border-bottom:1pt solid #d8dbd3;padding-bottom:4pt}
+p{margin:4pt 0}
+.cabecalho{border-bottom:2pt solid #1f8a5c;padding-bottom:10pt;margin-bottom:6pt}
+.cabecalho .headline{color:#3a3f35;font-size:11.5pt}
+.cabecalho .local{color:#6b7268;font-size:9.5pt}
+.bloco-score{display:flex;gap:18pt;margin:6pt 0}
+.bloco-score div{font-size:9pt;color:#6b7268}
+.bloco-score strong{display:block;font-size:14pt;color:#1f8a5c}
+.exp-item{margin:0 0 10pt;padding-left:10pt;border-left:2pt solid #d8dbd3}
+.exp-empresa{color:#1f8a5c;font-weight:bold;font-size:10pt}
+.exp-periodo{color:#6b7268;font-size:8.5pt}
+.exp-descricao{font-size:9.5pt}
+.chip-ld{display:inline-block;background:#eef3ec;border-radius:10pt;padding:2pt 8pt;font-size:8.5pt;margin:0 4pt 4pt 0}
+ul{padding-left:14pt;margin:4pt 0}
+li{margin:3pt 0;font-size:9.5pt}
+.vazio-perfil{color:#6b7268;font-style:italic;font-size:9.5pt}
+footer{margin-top:18pt;color:#9aa296;font-size:7.5pt}
+</style>
+"""
+
+
+def _pagina_perfil_pdf(perfil: dict, score_info: dict, lacunas: list[dict], n_vagas: int) -> str:
+    """HTML standalone (sem nav/CSS dark mode) usado só para gerar o PDF do
+    perfil revisado via weasyprint — paleta fixa clara, pensada pra papel."""
+    soft_pct = score_info["soft_skills_pct"]
+    soft_rotulo = "n/d" if soft_pct is None else f"{soft_pct}%"
+    return f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>Perfil revisado</title>{_ESTILO_PERFIL_PDF}</head><body>
+  <div class="cabecalho">
+    <h1>{html_lib.escape(perfil.get('nome') or 'Perfil não importado')}</h1>
+    <p class="headline">{html_lib.escape(perfil.get('headline') or '')}</p>
+    <p class="local">{html_lib.escape(perfil.get('localizacao') or '')}</p>
+  </div>
+
+  <div class="bloco-score">
+    <div>Score de perfil<strong>{score_info['score']}/100</strong>{html_lib.escape(score_info['classificacao'])}</div>
+    <div>Hard skills<strong>{score_info['hard_skills_pct']}%</strong></div>
+    <div>Soft skills<strong>{soft_rotulo}</strong></div>
+    <div>Completude<strong>{score_info['completude_pct']}%</strong></div>
+  </div>
+
+  <h2>Resumo</h2>
+  <p>{html_lib.escape(perfil.get('resumo') or '(sem resumo importado)')}</p>
+
+  <h2>Melhorias sugeridas no currículo</h2>
+  {_render_melhorias_curriculo(lacunas, n_vagas)}
+
+  <h2>Experiência</h2>
+  {_render_experiencias(perfil.get('experiencias') or [])}
+
+  <h2>Formação</h2>
+  {_render_educacao(perfil.get('educacao') or [])}
+
+  <h2>Skills autodeclaradas</h2>
+  {_render_chips(perfil.get('skills_linkedin') or [])}
+
+  <h2>Certificações</h2>
+  {_render_chips(perfil.get('certificacoes') or [])}
+
+  <footer>Gerado por Radar de Vagas em {date.today().isoformat()} — documento de uso pessoal.</footer>
+</body></html>"""
 
 
 def criar_app() -> Flask:
@@ -430,8 +545,10 @@ def criar_app() -> Flask:
         corpo = _pagina_editar_vaga(vaga)
         return Response(_layout(f"Editar — {vaga.get('titulo') or vaga_id}", corpo), mimetype="text/html")
 
-    @app.route("/perfil-profissional")
-    def perfil_profissional():
+    def _carregar_contexto_perfil():
+        """Reúne perfil profissional, vagas ativas, skills do CV e score —
+        usado tanto pela página /perfil-profissional quanto pelo export PDF,
+        para as duas verem exatamente os mesmos números."""
         dados_vagas = run_mod.carregar_vagas()
         vagas = [v for v in dados_vagas["vagas"] if not v.get("ignorada")]
 
@@ -448,9 +565,30 @@ def criar_app() -> Flask:
                 pass
 
         score_info = run_mod.analise.calcular_score_perfil(perfil_prof, skills_cv, vagas)
-        corpo = _pagina_perfil_profissional(perfil_prof, score_info)
+        lacunas = run_mod.analise.calcular_lacunas(vagas, skills_cv) if vagas else []
+        return perfil_prof, vagas, score_info, lacunas
+
+    @app.route("/perfil-profissional")
+    def perfil_profissional():
+        perfil_prof, vagas, score_info, lacunas = _carregar_contexto_perfil()
+        corpo = _pagina_perfil_profissional(perfil_prof, score_info, lacunas, len(vagas))
         titulo_pagina = f"Meu perfil — {perfil_prof.get('nome')}" if perfil_prof.get("nome") else "Meu perfil"
         return Response(_layout(titulo_pagina, corpo), mimetype="text/html")
+
+    @app.route("/perfil-profissional/exportar.pdf")
+    def exportar_perfil_pdf():
+        perfil_prof, vagas, score_info, lacunas = _carregar_contexto_perfil()
+        html_pdf = _pagina_perfil_pdf(perfil_prof, score_info, lacunas, len(vagas))
+
+        import weasyprint
+
+        pdf_bytes = weasyprint.HTML(string=html_pdf).write_pdf()
+        nome_arquivo = "perfil-revisado.pdf"
+        return Response(
+            pdf_bytes,
+            mimetype="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
+        )
 
     @app.route("/perfil-profissional/importar", methods=["POST"])
     def importar_perfil_linkedin():

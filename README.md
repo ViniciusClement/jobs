@@ -118,7 +118,9 @@ segredos e superfície de rede.
 4. `pip install flask` (necessário só para `python run.py serve`, a app
    web; os comandos de CLI funcionam sem isso).
 5. (Opcional, só se for usar CV em PDF) `pip install pypdf`.
-6. Rode `python run.py serve` e abra `http://localhost:8000` no navegador
+6. (Opcional, só para o botão "Exportar perfil revisado (PDF)" em Meu
+   perfil) `pip install weasyprint`.
+7. Rode `python run.py serve` e abra `http://localhost:8000` no navegador
    — ou `python run.py` para confirmar que a CLI funciona.
 
 Não precisa instalar nenhum servidor de banco de dados: o SQLite é um
@@ -402,9 +404,10 @@ Os dois painéis existem em duas versões, mesmo HTML/CSS/JS por baixo:
 Tema claro/escuro automático e responsivo nos dois casos.
 
 - **`docs/index.html` (PÚBLICO):** painel de mercado (top skills,
-  categorias, "em alta", distribuições, comparação BR × INT, comparação
-  por família, faixas salariais com N, seletor de recorte BR/INT
-  acessível/INT restrito/todos) + lista de vagas com busca e filtros
+  categorias, perfil das vagas — senioridade/modalidade/vínculo/família —,
+  comparação BR × INT, comparação por família, faixas salariais com N,
+  seletor de recorte BR/INT acessível/INT restrito/todos) + lista de vagas
+  com busca e filtros
   (senioridade, modalidade, contrato, vínculo, família, skill, restrição).
   Chips de skill têm tooltip com a frase-evidência (máx. 200 caracteres,
   e-mail/telefone sempre mascarados). Grupos alternativos aparecem como
@@ -423,6 +426,31 @@ Tema claro/escuro automático e responsivo nos dois casos.
 headless disponível, abre as páginas de verdade) que `docs/index.html`
 nunca contém texto bruto, e-mail/telefone, status/notas, conteúdo do
 perfil nem trechos do CV.
+
+## Meu perfil (score ao estilo SSI do LinkedIn)
+
+A página `/perfil-profissional` (link "Meu perfil" no menu) é um perfil
+estilo LinkedIn, pensado para evoluir junto com as vagas que você vai
+cadastrando:
+
+- **Importação:** exporte seu próprio perfil do LinkedIn em "Salvar como
+  PDF" e importe pelo formulário da página (ou
+  `python run.py import-linkedin caminho/Profile.pdf` pela CLI). O parser
+  (`radar/linkedin_import.py`) extrai nome, headline, localização, resumo,
+  experiências, formação, certificações e skills autodeclaradas.
+- **Score de perfil (0–100):** 55% cobertura de hard skills do mercado
+  (mesma lógica de `match_vaga`/unidade de exigência) + 20% cobertura de
+  soft skills (categoria "Soft skills/relatórios") + 25% completude do
+  perfil importado. Referência do próprio LinkedIn: **50+ é considerado
+  bom** (`radar/analise.py:calcular_score_perfil`).
+- **Melhorias sugeridas no currículo:** lista as skills mais exigidas
+  pelas vagas cadastradas e ausentes do seu CV (mesmo cálculo de lacunas
+  da aba "Meu CV"), priorizadas por quanto aparecem no mercado — para
+  decidir o que vale a pena aprender ou só adicionar ao currículo.
+- **Exportar perfil revisado (PDF):** botão que gera um PDF (via
+  [weasyprint](https://weasyprint.org/), `pip install weasyprint`) com o
+  perfil, score e as melhorias sugeridas — pensado para ser um retrato do
+  "estado atual" do seu posicionamento, pronto pra guardar ou compartilhar.
 
 ### Publicando no GitHub Pages
 

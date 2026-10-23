@@ -687,15 +687,12 @@ def cmd_coletar(args) -> None:
 def montar_payload_publico(vagas: list[dict]) -> dict:
     """Payload do painel público — usado pelo `gerar-html` (snapshot estático,
     para GitHub Pages) e pela rota "/" da app web (ao vivo)."""
-    hoje = date.today()
     return {
         "gerado_em": datetime.now().isoformat(timespec="minutes"),
         "privado": False,
         "vagas": [html_mod.montar_vaga_payload(v, False, html_mod.PERFIL_PUBLICO_GENERICO) for v in vagas],
         "comparacao_br_int": analise.comparar_br_int(vagas),
         "comparacao_familias": analise.comparar_familias(vagas),
-        "tendencia": analise.tendencia_skills(vagas, hoje),
-        "qualidade_dados": analise.qualidade_dados(vagas),
     }
 
 
@@ -703,7 +700,6 @@ def montar_payload_privado(vagas: list[dict]) -> dict:
     """Payload do painel privado (match/elegibilidade/Meu CV). Como efeito
     colateral, recalcula e grava a elegibilidade no banco — mantém
     privado/elegibilidade sempre fresca a cada vez que o painel é visto."""
-    hoje = date.today()
     perfil = obter_perfil()
 
     caminho_cv = cv_mod.encontrar_cv_mais_recente(CV_DIR)
@@ -754,8 +750,6 @@ def montar_payload_privado(vagas: list[dict]) -> dict:
         "vagas": vagas_privadas,
         "comparacao_br_int": analise.comparar_br_int(vagas),
         "comparacao_familias": analise.comparar_familias(vagas),
-        "tendencia": analise.tendencia_skills(vagas, hoje),
-        "qualidade_dados": analise.qualidade_dados(vagas),
         "meu_cv": {"cv_utilizavel": cv_utilizavel, "lacunas": lacunas, "historico": listar_historico()},
         "cobertura_por_recorte": cobertura_por_recorte,
         "score_perfil": score_perfil,
